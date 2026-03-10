@@ -162,24 +162,18 @@ function AppLayout() {
 }
 
 export default function App() {
-  const location = useLocation();
-  const isLandingPage = location.pathname === '/';
-
-  if (isLandingPage) {
-    return (
-      <WalletProvider>
-        <LandingPage />
-      </WalletProvider>
-    );
-  }
-
   return (
     <WalletProvider>
-      <ToastProvider>
-        <RedirectIfNotConnected>
-          <AppLayout />
-        </RedirectIfNotConnected>
-      </ToastProvider>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/app/*" element={
+          <ToastProvider>
+            <RedirectIfNotConnected>
+              <AppLayout />
+            </RedirectIfNotConnected>
+          </ToastProvider>
+        } />
+      </Routes>
     </WalletProvider>
   );
 }
