@@ -7,8 +7,9 @@
  * - AI-first interface for natural language DeFi
  */
 
-import { Routes, Route, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Routes, Route, NavLink, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
+import { Shield, Settings, LayoutDashboard } from 'lucide-react';
 import { WalletProvider, useWallet } from './hooks/useWallet';
 import { ToastProvider } from './components/Toast';
 import WalletConnect from './components/WalletConnect';
@@ -51,7 +52,7 @@ function AppLayout() {
         height: 400,
         pointerEvents: 'none',
         zIndex: 0,
-        background: 'radial-gradient(ellipse at center, rgba(14,165,233,0.04) 0%, transparent 70%)',
+        background: 'radial-gradient(ellipse at center, rgba(59,130,246,0.04) 0%, transparent 70%)',
       }} />
 
       {/* Header */}
@@ -59,8 +60,8 @@ function AppLayout() {
         position: 'relative',
         zIndex: 20,
         backdropFilter: 'blur(16px)',
-        background: 'rgba(3,7,18,0.9)',
-        borderBottom: '1px solid rgba(14,165,233,0.06)',
+        background: 'rgba(4,6,11,0.92)',
+        borderBottom: '1px solid rgba(59,130,246,0.08)',
       }}>
         <div style={{
           maxWidth: 1400,
@@ -72,21 +73,22 @@ function AppLayout() {
           justifyContent: 'space-between',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-            <NavLink to="/app" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+            <NavLink to="/app" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
               <ZapScuraLogo size={28} glow />
               <span style={{
-                fontFamily: "'Space Grotesk', sans-serif",
-                fontWeight: 800,
-                fontSize: 16,
+                fontFamily: "'Orbitron', sans-serif",
+                fontWeight: 700,
+                fontSize: 14,
                 color: '#fff',
-                letterSpacing: 0.5,
+                letterSpacing: 1,
               }}>
                 ZapScura
               </span>
               <span style={{
-                fontSize: 9,
-                color: 'rgba(14,165,233,0.4)',
-                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 8,
+                color: 'rgba(59,130,246,0.4)',
+                fontFamily: "'Fira Code', monospace",
+                letterSpacing: 1,
               }}>
                 v0.1
               </span>
@@ -100,6 +102,7 @@ function AppLayout() {
                   `nav-item ${isActive ? 'nav-item-active' : 'nav-item-inactive'}`
                 }
               >
+                <LayoutDashboard size={13} strokeWidth={1.5} />
                 Dashboard
               </NavLink>
               <NavLink
@@ -108,6 +111,7 @@ function AppLayout() {
                   `nav-item ${isActive ? 'nav-item-active' : 'nav-item-inactive'}`
                 }
               >
+                <Settings size={13} strokeWidth={1.5} />
                 Settings
               </NavLink>
             </nav>
@@ -129,7 +133,7 @@ function AppLayout() {
         position: 'relative',
         zIndex: 10,
         padding: '12px 24px',
-        borderTop: '1px solid rgba(14,165,233,0.04)',
+        borderTop: '1px solid rgba(59,130,246,0.06)',
       }}>
         <div style={{
           maxWidth: 1400,
@@ -139,18 +143,23 @@ function AppLayout() {
           justifyContent: 'space-between',
         }}>
           <span style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 10,
+            fontFamily: "'Fira Code', monospace",
+            fontSize: 9,
             color: 'rgba(255,255,255,0.2)',
+            letterSpacing: 1,
           }}>
-            ZapScura v0.1 — PRIVACY-PRESERVING AI DEFI ON STARKNET
+            ZAPSCURA v0.1 — PRIVACY-PRESERVING AI DEFI ON STARKNET
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span className="badge-zap" style={{ fontSize: 8 }}>Starkzap SDK</span>
+            <span className="badge-shield" style={{ fontSize: 8 }}>
+              <Shield size={8} strokeWidth={2} />
+              Starkzap SDK
+            </span>
             <span style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 9,
+              fontFamily: "'Fira Code', monospace",
+              fontSize: 8,
               color: 'rgba(255,255,255,0.15)',
+              letterSpacing: 1.5,
             }}>
               NOIR + GARAGA
             </span>
@@ -180,23 +189,27 @@ export default function App() {
 
 const appStyles = `
   .nav-item {
-    padding: 8px 16px;
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 13px;
+    padding: 8px 14px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 10px;
     font-weight: 500;
-    border-radius: 10px;
+    letter-spacing: 0.5px;
     transition: all 0.2s;
     text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
   }
   .nav-item-active {
-    background: rgba(14,165,233,0.1);
-    color: #0ea5e9;
+    background: rgba(59,130,246,0.1);
+    color: #3b82f6;
   }
   .nav-item-inactive {
-    color: rgba(255,255,255,0.4);
+    color: rgba(255,255,255,0.35);
   }
   .nav-item-inactive:hover {
-    background: rgba(14,165,233,0.04);
+    background: rgba(59,130,246,0.04);
     color: rgba(255,255,255,0.7);
   }
 `;

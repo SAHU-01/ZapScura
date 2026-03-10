@@ -3,6 +3,7 @@
  * Shows social login options when not connected.
  */
 
+import { LogOut, LogIn } from 'lucide-react';
 import { useWallet } from '../hooks/useWallet';
 
 export default function WalletConnect() {
@@ -22,42 +23,38 @@ export default function WalletConnect() {
           alignItems: 'center',
           gap: 8,
           padding: '6px 14px',
-          background: 'rgba(14,165,233,0.06)',
-          border: '1px solid rgba(14,165,233,0.15)',
-          borderRadius: 12,
+          background: 'rgba(59,130,246,0.04)',
+          border: '1px solid rgba(59,130,246,0.12)',
+          clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)',
         }}>
           <div style={{
-            width: 8,
-            height: 8,
-            borderRadius: '50%',
-            background: '#34d399',
-            boxShadow: '0 0 8px rgba(52,211,153,0.6)',
+            width: 6,
+            height: 6,
+            clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
+            background: '#10b981',
+            boxShadow: '0 0 8px rgba(16,185,129,0.6)',
           }} />
           <span style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 12,
-            color: 'rgba(255,255,255,0.7)',
+            fontFamily: "'Fira Code', monospace",
+            fontSize: 11,
+            color: 'rgba(255,255,255,0.6)',
+            letterSpacing: 0.5,
           }}>
             {shortAddr}
           </span>
-          <span className="badge-zap" style={{ fontSize: 8, padding: '2px 6px' }}>
+          <span className="badge-shield" style={{ fontSize: 7, padding: '2px 6px' }}>
             {methodLabel}
           </span>
         </div>
         <button
           onClick={disconnect}
+          className="btn-danger"
           style={{
             padding: '6px 12px',
-            background: 'rgba(239,68,68,0.08)',
-            border: '1px solid rgba(239,68,68,0.15)',
-            borderRadius: 10,
-            color: '#f87171',
-            cursor: 'pointer',
-            fontFamily: "'Space Grotesk', sans-serif",
-            fontSize: 11,
-            fontWeight: 500,
+            fontSize: 9,
           }}
         >
+          <LogOut size={10} strokeWidth={2} />
           Disconnect
         </button>
       </div>
@@ -68,13 +65,14 @@ export default function WalletConnect() {
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       {error && (
         <span style={{
-          fontFamily: "'JetBrains Mono', monospace",
-          fontSize: 10,
-          color: '#f87171',
+          fontFamily: "'Fira Code', monospace",
+          fontSize: 9,
+          color: '#ef4444',
           maxWidth: 200,
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
+          letterSpacing: 0.5,
         }}>
           {error}
         </span>
@@ -83,25 +81,31 @@ export default function WalletConnect() {
         className="btn-primary"
         onClick={() => connect('google')}
         disabled={isConnecting}
-        style={{ padding: '8px 20px', fontSize: 12 }}
+        style={{ padding: '8px 20px', fontSize: 10 }}
       >
         {isConnecting ? (
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{
-              width: 12,
-              height: 12,
-              border: '2px solid rgba(255,255,255,0.2)',
-              borderTopColor: '#fff',
-              borderRadius: '50%',
-              animation: 'spin 0.8s linear infinite',
-            }} />
+            <span className="zap-connect-spinner" />
             Connecting...
           </span>
         ) : (
-          'Sign In'
+          <>
+            <LogIn size={11} strokeWidth={2} />
+            Sign In
+          </>
         )}
       </button>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .zap-connect-spinner {
+          width: 12px;
+          height: 12px;
+          border: 2px solid rgba(255,255,255,0.2);
+          border-top-color: #fff;
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+        }
+      `}</style>
     </div>
   );
 }

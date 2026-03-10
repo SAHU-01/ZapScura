@@ -7,6 +7,7 @@
  * - Proof history
  */
 
+import { TrendingUp, Zap, Clock } from 'lucide-react';
 import { useWallet } from '../hooks/useWallet';
 import AIChat from '../components/AIChat';
 import BalanceDisplay from '../components/BalanceDisplay';
@@ -29,7 +30,7 @@ export default function DashboardPage() {
         display: 'flex',
         flexDirection: 'column',
         minHeight: 0,
-        borderRight: '1px solid rgba(14,165,233,0.06)',
+        borderRight: '1px solid rgba(59,130,246,0.06)',
       }}>
         <AIChat />
       </div>
@@ -41,9 +42,9 @@ export default function DashboardPage() {
         gap: 16,
         padding: 20,
         overflowY: 'auto',
-        background: 'rgba(3,7,18,0.5)',
+        background: 'rgba(4,6,11,0.5)',
         scrollbarWidth: 'thin',
-        scrollbarColor: 'rgba(14,165,233,0.1) transparent',
+        scrollbarColor: 'rgba(59,130,246,0.1) transparent',
       }}>
         {/* Portfolio card */}
         <BalanceDisplay />
@@ -51,17 +52,24 @@ export default function DashboardPage() {
         {/* Yield info card */}
         <div className="card" style={{ padding: 16 }}>
           <div style={{
-            fontFamily: "'Space Grotesk', sans-serif",
-            fontSize: 11,
-            fontWeight: 600,
-            color: 'rgba(255,255,255,0.4)',
-            letterSpacing: 1,
-            textTransform: 'uppercase',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
             marginBottom: 12,
           }}>
-            Yield Sources
+            <TrendingUp size={12} strokeWidth={1.5} color="rgba(255,255,255,0.35)" />
+            <span style={{
+              fontFamily: "'Orbitron', sans-serif",
+              fontSize: 10,
+              fontWeight: 600,
+              color: 'rgba(255,255,255,0.35)',
+              letterSpacing: 1,
+              textTransform: 'uppercase',
+            }}>
+              Yield Sources
+            </span>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {[
               { name: 'Endur (staking)', apr: '5.2%', status: 'active' },
               { name: 'Vesu (lending)', apr: '3.8%', status: 'available' },
@@ -73,28 +81,27 @@ export default function DashboardPage() {
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 padding: '8px 10px',
-                background: 'rgba(255,255,255,0.02)',
-                borderRadius: 8,
+                background: 'rgba(255,255,255,0.015)',
+                clipPath: 'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)',
               }}>
-                <div>
-                  <div style={{
-                    fontFamily: "'Inter', sans-serif",
-                    fontSize: 12,
-                    color: 'rgba(255,255,255,0.6)',
-                  }}>
-                    {source.name}
-                  </div>
+                <div style={{
+                  fontFamily: "'Outfit', sans-serif",
+                  fontSize: 12,
+                  fontWeight: 400,
+                  color: 'rgba(255,255,255,0.55)',
+                }}>
+                  {source.name}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{
-                    fontFamily: "'JetBrains Mono', monospace",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: '#34d399',
+                    fontFamily: "'Fira Code', monospace",
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: '#10b981',
                   }}>
                     {source.apr}
                   </span>
-                  <span className={source.status === 'active' ? 'badge-green' : source.status === 'available' ? 'badge-zap' : 'badge-amber'}
+                  <span className={source.status === 'active' ? 'badge-green' : source.status === 'available' ? 'badge-shield' : 'badge-amber'}
                     style={{ fontSize: 7, padding: '2px 6px' }}>
                     {source.status}
                   </span>
@@ -107,56 +114,64 @@ export default function DashboardPage() {
         {/* Proof History */}
         <div className="card" style={{ padding: 16 }}>
           <div style={{
-            fontFamily: "'Space Grotesk', sans-serif",
-            fontSize: 11,
-            fontWeight: 600,
-            color: 'rgba(255,255,255,0.4)',
-            letterSpacing: 1,
-            textTransform: 'uppercase',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
             marginBottom: 12,
           }}>
-            Proof History
+            <Clock size={12} strokeWidth={1.5} color="rgba(255,255,255,0.35)" />
+            <span style={{
+              fontFamily: "'Orbitron', sans-serif",
+              fontSize: 10,
+              fontWeight: 600,
+              color: 'rgba(255,255,255,0.35)',
+              letterSpacing: 1,
+              textTransform: 'uppercase',
+            }}>
+              Proof History
+            </span>
           </div>
           {proofs.length === 0 ? (
             <div style={{
-              fontSize: 12,
+              fontSize: 11,
               color: 'rgba(255,255,255,0.2)',
-              fontFamily: "'Inter', sans-serif",
+              fontFamily: "'Outfit', sans-serif",
               textAlign: 'center',
               padding: '20px 0',
             }}>
               No proofs generated yet. Ask the AI to shield your balance!
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {proofs.slice(0, 8).map((proof: ProofRecord) => (
                 <div key={proof.id} style={{
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   padding: '8px 10px',
-                  background: 'rgba(255,255,255,0.02)',
-                  borderRadius: 8,
+                  background: 'rgba(255,255,255,0.015)',
+                  clipPath: 'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div style={{
                       width: 6,
                       height: 6,
-                      borderRadius: '50%',
-                      background: proof.status === 'verified' ? '#34d399' : proof.status === 'pending' ? '#fbbf24' : '#f87171',
+                      clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
+                      background: proof.status === 'verified' ? '#10b981' : proof.status === 'pending' ? '#f59e0b' : '#ef4444',
                     }} />
                     <span style={{
-                      fontFamily: "'JetBrains Mono', monospace",
+                      fontFamily: "'Fira Code', monospace",
                       fontSize: 10,
-                      color: 'rgba(255,255,255,0.5)',
+                      color: 'rgba(255,255,255,0.45)',
                     }}>
                       {proof.circuit.replace(/_/g, ' ')}
                     </span>
                   </div>
                   <span style={{
-                    fontFamily: "'JetBrains Mono', monospace",
+                    fontFamily: "'Fira Code', monospace",
                     fontSize: 9,
-                    color: 'rgba(255,255,255,0.25)',
+                    color: 'rgba(255,255,255,0.2)',
+                    letterSpacing: 0.5,
                   }}>
                     {new Date(proof.timestamp).toLocaleTimeString()}
                   </span>
@@ -169,9 +184,9 @@ export default function DashboardPage() {
         {/* Starkzap info */}
         <div style={{
           padding: '12px 14px',
-          background: 'rgba(14,165,233,0.03)',
-          border: '1px solid rgba(14,165,233,0.06)',
-          borderRadius: 12,
+          background: 'rgba(59,130,246,0.02)',
+          border: '1px solid rgba(59,130,246,0.06)',
+          clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)',
         }}>
           <div style={{
             display: 'flex',
@@ -179,21 +194,23 @@ export default function DashboardPage() {
             gap: 6,
             marginBottom: 6,
           }}>
-            <span style={{ fontSize: 14 }}>⚡</span>
+            <Zap size={12} strokeWidth={1.5} color="#3b82f6" />
             <span style={{
-              fontFamily: "'Space Grotesk', sans-serif",
-              fontSize: 11,
+              fontFamily: "'Orbitron', sans-serif",
+              fontSize: 10,
               fontWeight: 600,
-              color: 'rgba(255,255,255,0.5)',
+              color: 'rgba(255,255,255,0.45)',
+              letterSpacing: 0.5,
             }}>
               Starkzap Integration
             </span>
           </div>
           <div style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 10,
-            color: 'rgba(255,255,255,0.25)',
-            lineHeight: 1.6,
+            fontFamily: "'Fira Code', monospace",
+            fontSize: 9,
+            color: 'rgba(255,255,255,0.2)',
+            lineHeight: 1.8,
+            letterSpacing: 0.5,
           }}>
             Social login (Privy + Cartridge)<br />
             Gasless tx (Paymaster)<br />

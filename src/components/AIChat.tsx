@@ -6,6 +6,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { Shield, Send, CheckCircle2, AlertTriangle, Zap } from 'lucide-react';
 import { useWallet } from '../hooks/useWallet';
 import { useBalance } from '../hooks/useBalance';
 import { useProof } from '../hooks/useProof';
@@ -245,41 +246,49 @@ export default function AIChat() {
   const renderTxCard = (txHash: string) => (
     <div style={{
       padding: '12px 16px',
-      background: 'rgba(52,211,153,0.04)',
-      border: '1px solid rgba(52,211,153,0.15)',
-      borderRadius: 12,
+      background: 'rgba(16,185,129,0.04)',
+      border: '1px solid rgba(16,185,129,0.15)',
+      clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)',
       marginTop: 4,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="2.5" strokeLinecap="round">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-          <polyline points="22 4 12 14.01 9 11.01" />
-        </svg>
-        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 700, color: '#34d399', letterSpacing: 0.5 }}>
+        <CheckCircle2 size={13} strokeWidth={2} color="#10b981" />
+        <span style={{
+          fontFamily: "'Orbitron', sans-serif",
+          fontSize: 9,
+          fontWeight: 700,
+          color: '#10b981',
+          letterSpacing: 1,
+        }}>
           TRANSACTION CONFIRMED
         </span>
-        <span className="badge-zap" style={{ fontSize: 7, padding: '1px 5px', marginLeft: 'auto' }}>GASLESS</span>
+        <span className="badge-shield" style={{ fontSize: 7, padding: '1px 5px', marginLeft: 'auto' }}>
+          <Zap size={7} strokeWidth={2} />
+          GASLESS
+        </span>
       </div>
       <div style={{
-        fontFamily: "'JetBrains Mono', monospace",
-        fontSize: 11,
-        color: 'rgba(255,255,255,0.6)',
-        background: 'rgba(255,255,255,0.03)',
+        fontFamily: "'Fira Code', monospace",
+        fontSize: 10,
+        color: 'rgba(255,255,255,0.55)',
+        background: 'rgba(255,255,255,0.02)',
         padding: '6px 10px',
-        borderRadius: 8,
+        clipPath: 'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap',
+        letterSpacing: 0.5,
       }}>
         {txHash.slice(0, 10)}...{txHash.slice(-8)}
       </div>
       <div style={{
-        fontFamily: "'JetBrains Mono', monospace",
-        fontSize: 9,
-        color: 'rgba(255,255,255,0.25)',
+        fontFamily: "'Fira Code', monospace",
+        fontSize: 8,
+        color: 'rgba(255,255,255,0.2)',
         marginTop: 4,
+        letterSpacing: 1,
       }}>
-        Starknet Sepolia
+        STARKNET SEPOLIA
       </div>
     </div>
   );
@@ -292,16 +301,16 @@ export default function AIChat() {
     return content.split('\n').map((line, i) => {
       let escaped = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       let processed = escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-      processed = processed.replace(/`(.*?)`/g, '<code style="background:rgba(14,165,233,0.12);padding:1px 5px;border-radius:4px;font-size:12px;font-family:JetBrains Mono,monospace">$1</code>');
+      processed = processed.replace(/`(.*?)`/g, '<code style="background:rgba(59,130,246,0.1);padding:1px 5px;clip-path:polygon(2px 0,100% 0,100% calc(100% - 2px),calc(100% - 2px) 100%,0 100%,0 2px);font-size:11px;font-family:Fira Code,monospace;letter-spacing:0.3px">$1</code>');
       if (processed.startsWith('- ') || processed.startsWith('* ')) {
-        processed = '<span style="color:rgba(14,165,233,0.5);margin-right:6px">&#8226;</span>' + processed.slice(2);
+        processed = '<span style="color:rgba(59,130,246,0.5);margin-right:6px">&#9670;</span>' + processed.slice(2);
       }
       if (processed.match(/^\d+\.\s/)) {
         const num = processed.match(/^(\d+)\.\s/)?.[1];
-        processed = `<span style="color:#0ea5e9;font-weight:600;margin-right:4px">${num}.</span>` + processed.replace(/^\d+\.\s/, '');
+        processed = `<span style="color:#3b82f6;font-weight:600;margin-right:4px;font-family:Orbitron,sans-serif;font-size:11px">${num}.</span>` + processed.replace(/^\d+\.\s/, '');
       }
       if (processed.startsWith('## ')) {
-        return <div key={i} style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: '#0ea5e9', marginTop: 8, marginBottom: 4 }}>{processed.slice(3)}</div>;
+        return <div key={i} style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 12, fontWeight: 700, color: '#3b82f6', marginTop: 8, marginBottom: 4, letterSpacing: 0.5 }}>{processed.slice(3)}</div>;
       }
       return <div key={i} dangerouslySetInnerHTML={{ __html: sanitize(processed) }} style={{ minHeight: line.trim() ? undefined : 6 }} />;
     });
@@ -323,29 +332,30 @@ export default function AIChat() {
             <div style={{
               width: 56,
               height: 56,
-              borderRadius: 16,
-              background: 'linear-gradient(135deg, rgba(14,165,233,0.15), rgba(217,70,239,0.15))',
-              border: '1px solid rgba(14,165,233,0.2)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto 16px',
-              fontSize: 24,
+              background: 'rgba(59,130,246,0.06)',
+              border: '1px solid rgba(59,130,246,0.15)',
+              clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)',
             }}>
-              ⚡
+              <Shield size={24} strokeWidth={1.5} color="#3b82f6" />
             </div>
             <div style={{
-              fontFamily: "'Space Grotesk', sans-serif",
-              fontSize: 18,
+              fontFamily: "'Orbitron', sans-serif",
+              fontSize: 16,
               fontWeight: 700,
               color: '#fff',
               marginBottom: 8,
+              letterSpacing: 0.5,
             }}>
               Welcome to ZapScura
             </div>
             <p style={{
-              fontSize: 14,
-              color: 'rgba(255,255,255,0.4)',
+              fontSize: 13,
+              fontFamily: "'Outfit', sans-serif",
+              color: 'rgba(255,255,255,0.35)',
               marginBottom: 24,
               lineHeight: 1.6,
               maxWidth: 400,
@@ -356,7 +366,7 @@ export default function AIChat() {
             <div style={{
               display: 'flex',
               flexWrap: 'wrap',
-              gap: 8,
+              gap: 6,
               justifyContent: 'center',
               maxWidth: 500,
               margin: '0 auto',
@@ -378,13 +388,17 @@ export default function AIChat() {
           if (msg.role === 'action-confirm' && msg.action) {
             return (
               <div key={msg.id} className="zap-action-confirm">
-                <div className="zap-msg-label" style={{ color: '#fbbf24' }}>CONFIRM ACTION</div>
+                <div className="zap-msg-label" style={{ color: '#f59e0b' }}>
+                  <AlertTriangle size={10} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />
+                  CONFIRM ACTION
+                </div>
                 <div style={{
-                  fontFamily: "'Space Grotesk', sans-serif",
-                  fontSize: 14,
+                  fontFamily: "'Orbitron', sans-serif",
+                  fontSize: 12,
                   fontWeight: 600,
-                  color: '#fbbf24',
+                  color: '#f59e0b',
                   margin: '6px 0 12px',
+                  letterSpacing: 0.5,
                 }}>
                   {msg.content}
                 </div>
@@ -411,8 +425,8 @@ export default function AIChat() {
           if (msg.role === 'status') {
             return (
               <div key={msg.id} className="zap-msg zap-msg-status">
-                <div className="zap-msg-label" style={{ color: '#0ea5e9' }}>EXECUTING</div>
-                <div className="zap-msg-content" style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#0ea5e9' }}>
+                <div className="zap-msg-label" style={{ color: '#3b82f6' }}>EXECUTING</div>
+                <div className="zap-msg-content" style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#3b82f6' }}>
                   <span className="zap-spinner" />
                   {msg.content}
                 </div>
@@ -424,7 +438,7 @@ export default function AIChat() {
             const ok = msg.actionResult?.success;
             return (
               <div key={msg.id} className={`zap-msg ${ok ? 'zap-result-ok' : 'zap-result-fail'}`}>
-                <div className="zap-msg-label" style={{ color: ok ? '#34d399' : '#f87171' }}>
+                <div className="zap-msg-label" style={{ color: ok ? '#10b981' : '#ef4444' }}>
                   {ok ? 'SUCCESS' : 'FAILED'}
                 </div>
                 <div className="zap-msg-content">{renderContent(msg.content)}</div>
@@ -458,13 +472,14 @@ export default function AIChat() {
         {error && (
           <div style={{
             padding: '10px 14px',
-            fontSize: 12,
-            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 11,
+            fontFamily: "'Fira Code', monospace",
             background: 'rgba(239,68,68,0.08)',
             border: '1px solid rgba(239,68,68,0.15)',
-            borderRadius: 12,
-            color: '#f87171',
+            clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)',
+            color: '#ef4444',
             margin: '0 0 12px',
+            letterSpacing: 0.5,
           }}>
             {error}
           </div>
@@ -495,10 +510,7 @@ export default function AIChat() {
           onClick={() => handleSend()}
           disabled={isLoading || isExecuting || !input.trim()}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M22 2L11 13" />
-            <path d="M22 2l-7 20-4-9-9-4 20-7z" />
-          </svg>
+          <Send size={16} strokeWidth={1.5} />
         </button>
       </div>
     </div>
@@ -516,68 +528,70 @@ const chatStyles = `
     overflow-y: auto;
     padding: 20px;
     scrollbar-width: thin;
-    scrollbar-color: rgba(14,165,233,0.15) transparent;
+    scrollbar-color: rgba(59,130,246,0.1) transparent;
   }
   .zap-chat-messages::-webkit-scrollbar { width: 4px; }
   .zap-chat-messages::-webkit-scrollbar-thumb {
-    background: rgba(14,165,233,0.15);
+    background: rgba(59,130,246,0.15);
     border-radius: 2px;
   }
 
   .zap-suggestion-btn {
-    padding: 8px 16px;
-    font-size: 13px;
-    font-family: 'Inter', sans-serif;
+    padding: 8px 14px;
+    font-size: 11px;
+    font-family: 'Orbitron', sans-serif;
     font-weight: 500;
-    background: rgba(14,165,233,0.06);
-    border: 1px solid rgba(14,165,233,0.12);
-    border-radius: 10px;
-    color: rgba(255,255,255,0.6);
+    letter-spacing: 0.3px;
+    background: rgba(59,130,246,0.04);
+    border: 1px solid rgba(59,130,246,0.1);
+    clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+    color: rgba(255,255,255,0.5);
     cursor: pointer;
     transition: all 0.2s;
   }
   .zap-suggestion-btn:hover {
-    background: rgba(14,165,233,0.12);
-    border-color: rgba(14,165,233,0.25);
-    color: #0ea5e9;
+    background: rgba(59,130,246,0.1);
+    border-color: rgba(59,130,246,0.25);
+    color: #3b82f6;
     transform: translateY(-1px);
   }
 
   .zap-msg { margin-bottom: 16px; }
   .zap-msg-label {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 10px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 9px;
     font-weight: 700;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
     margin-bottom: 6px;
     text-transform: uppercase;
   }
-  .zap-msg-user .zap-msg-label { color: rgba(255,255,255,0.3); }
-  .zap-msg-assistant .zap-msg-label { color: rgba(14,165,233,0.6); }
+  .zap-msg-user .zap-msg-label { color: rgba(255,255,255,0.25); }
+  .zap-msg-assistant .zap-msg-label { color: rgba(59,130,246,0.5); }
 
   .zap-msg-content {
-    font-family: 'Inter', sans-serif;
-    font-size: 14px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
     line-height: 1.7;
     padding: 14px 18px;
-    border-radius: 14px;
   }
   .zap-msg-user .zap-msg-content {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.06);
-    color: rgba(255,255,255,0.85);
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.05);
+    color: rgba(255,255,255,0.8);
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
   }
   .zap-msg-assistant .zap-msg-content {
-    background: rgba(14,165,233,0.04);
-    border: 1px solid rgba(14,165,233,0.08);
-    color: rgba(255,255,255,0.75);
+    background: rgba(59,130,246,0.03);
+    border: 1px solid rgba(59,130,246,0.08);
+    color: rgba(255,255,255,0.7);
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
   }
 
   .zap-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #0ea5e9, #d946ef);
+    width: 6px;
+    height: 6px;
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    background: #3b82f6;
     animation: zap-bounce 1.4s ease-in-out infinite;
   }
 
@@ -585,8 +599,8 @@ const chatStyles = `
   .zap-spinner {
     width: 14px;
     height: 14px;
-    border: 2px solid rgba(14,165,233,0.2);
-    border-top-color: #0ea5e9;
+    border: 2px solid rgba(59,130,246,0.2);
+    border-top-color: #3b82f6;
     border-radius: 50%;
     animation: zap-spin 0.8s linear infinite;
     flex-shrink: 0;
@@ -595,85 +609,87 @@ const chatStyles = `
   .zap-action-confirm {
     margin-bottom: 16px;
     padding: 16px 18px;
-    background: rgba(251,191,36,0.04);
-    border: 1px solid rgba(251,191,36,0.15);
-    border-radius: 14px;
+    background: rgba(245,158,11,0.03);
+    border: 1px solid rgba(245,158,11,0.12);
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
   }
   .zap-action-btn {
-    padding: 8px 20px;
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 13px;
+    padding: 8px 18px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 10px;
     font-weight: 600;
-    border-radius: 10px;
+    letter-spacing: 0.5px;
     cursor: pointer;
     transition: all 0.2s;
     border: 1px solid;
+    clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
   }
   .zap-action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .zap-btn-execute {
-    background: rgba(52,211,153,0.12);
-    border-color: rgba(52,211,153,0.25);
-    color: #34d399;
+    background: rgba(16,185,129,0.1);
+    border-color: rgba(16,185,129,0.2);
+    color: #10b981;
   }
   .zap-btn-execute:hover:not(:disabled) {
-    background: rgba(52,211,153,0.2);
-    border-color: rgba(52,211,153,0.4);
+    background: rgba(16,185,129,0.18);
+    border-color: rgba(16,185,129,0.35);
   }
   .zap-btn-cancel {
-    background: rgba(239,68,68,0.08);
-    border-color: rgba(239,68,68,0.15);
+    background: rgba(239,68,68,0.06);
+    border-color: rgba(239,68,68,0.12);
     color: #f87171;
   }
   .zap-btn-cancel:hover:not(:disabled) {
-    background: rgba(239,68,68,0.15);
-    border-color: rgba(239,68,68,0.3);
+    background: rgba(239,68,68,0.12);
+    border-color: rgba(239,68,68,0.25);
   }
 
   .zap-result-ok .zap-msg-content {
-    background: rgba(52,211,153,0.04) !important;
-    border-color: rgba(52,211,153,0.12) !important;
+    background: rgba(16,185,129,0.03) !important;
+    border-color: rgba(16,185,129,0.1) !important;
   }
   .zap-result-fail .zap-msg-content {
-    background: rgba(239,68,68,0.04) !important;
-    border-color: rgba(239,68,68,0.12) !important;
+    background: rgba(239,68,68,0.03) !important;
+    border-color: rgba(239,68,68,0.1) !important;
   }
 
   .zap-chat-input-area {
     display: flex;
     gap: 10px;
     padding: 16px 20px;
-    border-top: 1px solid rgba(14,165,233,0.06);
-    background: rgba(3,7,18,0.8);
+    border-top: 1px solid rgba(59,130,246,0.06);
+    background: rgba(4,6,11,0.8);
     backdrop-filter: blur(12px);
   }
 
   .zap-chat-input {
     width: 100%;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(14,165,233,0.1);
-    border-radius: 14px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(59,130,246,0.08);
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
     padding: 14px 18px;
-    font-family: 'Inter', sans-serif;
-    font-size: 14px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
     color: #fff;
     outline: none;
     transition: all 0.2s;
   }
   .zap-chat-input:focus {
-    border-color: rgba(14,165,233,0.3);
-    box-shadow: 0 0 20px rgba(14,165,233,0.06);
+    border-color: rgba(59,130,246,0.25);
+    box-shadow: 0 0 20px rgba(59,130,246,0.05);
   }
   .zap-chat-input::placeholder {
-    color: rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.18);
+    font-family: 'Outfit', sans-serif;
   }
 
   .zap-send-btn {
     width: 48px;
     height: 48px;
-    border-radius: 14px;
-    background: linear-gradient(135deg, rgba(14,165,233,0.2), rgba(217,70,239,0.2));
-    border: 1px solid rgba(14,165,233,0.25);
-    color: #0ea5e9;
+    background: rgba(59,130,246,0.1);
+    border: 1px solid rgba(59,130,246,0.2);
+    clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+    color: #3b82f6;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -682,12 +698,12 @@ const chatStyles = `
     flex-shrink: 0;
   }
   .zap-send-btn:hover:not(:disabled) {
-    background: linear-gradient(135deg, rgba(14,165,233,0.3), rgba(217,70,239,0.3));
-    border-color: rgba(14,165,233,0.4);
-    transform: scale(1.05);
+    background: rgba(59,130,246,0.18);
+    border-color: rgba(59,130,246,0.35);
+    box-shadow: 0 0 15px rgba(59,130,246,0.15);
   }
   .zap-send-btn:disabled {
-    opacity: 0.3;
+    opacity: 0.25;
     cursor: not-allowed;
   }
 
