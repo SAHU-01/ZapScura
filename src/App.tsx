@@ -14,6 +14,7 @@ import { WalletProvider, useWallet } from './hooks/useWallet';
 import { ToastProvider } from './components/Toast';
 import WalletConnect from './components/WalletConnect';
 import ZapScuraLogo, { logoStyles } from './components/ZapScuraLogo';
+import HomePage from './pages/HomePage';
 import LandingPage from './pages/LandingPage';
 import DashboardPage from './pages/DashboardPage';
 import SettingsPage from './pages/SettingsPage';
@@ -24,7 +25,7 @@ function RedirectIfNotConnected({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!address) {
-      navigate('/');
+      navigate('/login');
     }
   }, [address, navigate]);
 
@@ -174,7 +175,8 @@ export default function App() {
   return (
     <WalletProvider>
       <Routes>
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/login" element={<LandingPage />} />
         <Route path="/app/*" element={
           <ToastProvider>
             <RedirectIfNotConnected>
