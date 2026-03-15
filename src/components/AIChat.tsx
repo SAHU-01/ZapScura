@@ -6,14 +6,21 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Shield, Send, CheckCircle2, AlertTriangle, Zap } from 'lucide-react';
+import { Shield, Send, CheckCircle2, AlertTriangle, Zap, Lock, Clock } from 'lucide-react';
 import { useWallet } from '../hooks/useWallet';
 import { useBalance } from '../hooks/useBalance';
 import { useProof } from '../hooks/useProof';
 import { sendChatMessage, type ChatMessage } from '../lib/ai/client';
 import { parseActions, executeAction, type AIAction, type ActionResult } from '../lib/ai/executor';
 import { getLocalShieldedBalance, getLocalCDPCollateral, getLocalCDPDebt } from '../lib/shieldedBalance';
+import { loadProofHistory, type ProofRecord } from '../lib/proofHistory';
 import { CONTRACT_ADDRESSES } from '../lib/contracts/config';
+
+interface ProofMeta {
+  circuit: string;
+  timeMs: number;
+  status: 'verified' | 'failed';
+}
 
 interface UIMessage {
   id: string;
@@ -22,7 +29,20 @@ interface UIMessage {
   timestamp: number;
   action?: AIAction;
   actionResult?: ActionResult;
+  proofMeta?: ProofMeta;
 }
+
+const PROOF_ACTIONS = new Set(['shield', 'unshield', 'lock_collateral', 'mint_susd', 'repay', 'close_cdp', 'submit_solvency']);
+
+const CIRCUIT_LABELS: Record<string, string> = {
+  range_proof: 'Range Proof',
+  balance_sufficiency: 'Balance Sufficiency',
+  collateral_ratio: 'Collateral Ratio',
+  debt_update_validity: 'Debt Update Validity',
+  zero_debt: 'Zero Debt',
+  vault_solvency: 'Vault Solvency',
+  cdp_safety_bound: 'CDP Safety Bound',
+};
 
 const SUGGESTED_PROMPTS = [
   { label: 'Stake BTC Privately', prompt: 'I want to stake 1 BTC privately and earn yield' },
@@ -43,7 +63,9 @@ export default function AIChat() {
   const inputRef = useRef<HTMLInputElement>(null);
   const { address, account, privacyKey } = useWallet();
   const { balances, refresh: refreshBalances } = useBalance();
-  const { prove } = useProof();
+  const { prove, isProving, progress: proofProgress } = useProof();
+  const proofStartRef = useRef<number>(0);
+  const [recentProofs, setRecentProofs] = useState<ProofRecord[]>([]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -52,6 +74,13 @@ export default function AIChat() {
   useEffect(() => {
     setTimeout(() => inputRef.current?.focus(), 100);
   }, []);
+
+  // Load proof history on mount and when address changes
+  useEffect(() => {
+    if (address) {
+      setRecentProofs(loadProofHistory(address).slice(0, 5));
+    }
+  }, [address]);
 
   const buildWalletContext = useCallback((): string => {
     if (!address) return 'User not signed in yet.';
@@ -102,6 +131,7 @@ export default function AIChat() {
       check_balances: 'Check balances',
       check_solvency: 'Check solvency',
       submit_solvency: 'Submit solvency proofs',
+      initialize_verifier: 'Initialize ProofVerifier',
     };
     return labels[action.action] || action.action;
   };
@@ -115,12 +145,16 @@ export default function AIChat() {
     setIsExecuting(true);
     setMessages(prev => prev.filter(m => m.id !== confirmMsgId));
 
+    const isProofAction = PROOF_ACTIONS.has(action.action);
+    if (isProofAction) proofStartRef.current = Date.now();
+
     const statusId = crypto.randomUUID();
     setMessages(prev => [...prev, {
       id: statusId,
       role: 'status' as const,
       content: `Executing: ${formatAction(action)}...`,
       timestamp: Date.now(),
+      action,
     }]);
 
     const onStatus = (status: string) => {
@@ -136,17 +170,39 @@ export default function AIChat() {
         onStatus,
       );
 
+      // Build proof metadata from proof history
+      let proofMeta: ProofMeta | undefined;
+      if (isProofAction && result.success && address) {
+        const latestProof = loadProofHistory(address)[0];
+        proofMeta = {
+          circuit: latestProof?.circuit ?? action.action,
+          timeMs: Date.now() - proofStartRef.current,
+          status: 'verified',
+        };
+      } else if (isProofAction && !result.success) {
+        proofMeta = {
+          circuit: action.action,
+          timeMs: Date.now() - proofStartRef.current,
+          status: 'failed',
+        };
+      }
+
       setMessages(prev => prev.map(m =>
         m.id === statusId ? {
           ...m,
           role: 'action-result' as const,
           content: result.message,
           actionResult: result,
+          proofMeta,
         } : m
       ));
 
       if (result.success) {
         refreshBalances().catch(() => {});
+        // Refresh proof history for inline display
+        if (address) {
+          setRecentProofs(loadProofHistory(address).slice(0, 5));
+        }
       }
 
       if (result.txHash) {
@@ -165,6 +221,11 @@ export default function AIChat() {
           role: 'action-result' as const,
           content: `Failed: ${errMsg}`,
           actionResult: { success: false, message: errMsg },
+          proofMeta: isProofAction ? {
+            circuit: action.action,
+            timeMs: Date.now() - proofStartRef.current,
+            status: 'failed' as const,
+          } : undefined,
         } : m
       ));
     } finally {
@@ -423,12 +484,70 @@ export default function AIChat() {
           }
 
           if (msg.role === 'status') {
+            const showProofProgress = isProving && proofProgress && msg.action && PROOF_ACTIONS.has(msg.action.action);
             return (
               <div key={msg.id} className="zap-msg zap-msg-status">
-                <div className="zap-msg-label" style={{ color: '#3b82f6' }}>EXECUTING</div>
-                <div className="zap-msg-content" style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#3b82f6' }}>
-                  <span className="zap-spinner" />
-                  {msg.content}
+                <div className="zap-msg-label" style={{ color: '#3b82f6' }}>
+                  {showProofProgress ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Lock size={9} strokeWidth={2} />
+                      ZK PROOF GENERATION
+                    </span>
+                  ) : 'EXECUTING'}
+                </div>
+                <div className="zap-msg-content" style={{ color: '#3b82f6' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: showProofProgress ? 12 : 0 }}>
+                    <span className="zap-spinner" />
+                    {msg.content}
+                  </div>
+                  {showProofProgress && proofProgress && (
+                    <div className="zap-proof-progress-card">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <span style={{
+                          fontFamily: "'Fira Code', monospace",
+                          fontSize: 9,
+                          color: 'rgba(59,130,246,0.7)',
+                          letterSpacing: 1,
+                          textTransform: 'uppercase',
+                        }}>
+                          {proofProgress.stage}
+                        </span>
+                        <span style={{
+                          fontFamily: "'Orbitron', sans-serif",
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: '#3b82f6',
+                        }}>
+                          {proofProgress.percent ?? 0}%
+                        </span>
+                      </div>
+                      <div className="zap-proof-bar">
+                        <div className="zap-proof-bar-fill" style={{ width: `${proofProgress.percent ?? 0}%` }} />
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginTop: 8,
+                      }}>
+                        <span style={{
+                          fontFamily: "'Fira Code', monospace",
+                          fontSize: 9,
+                          color: 'rgba(255,255,255,0.3)',
+                        }}>
+                          {proofProgress.message}
+                        </span>
+                        <span style={{
+                          fontFamily: "'Fira Code', monospace",
+                          fontSize: 8,
+                          color: 'rgba(255,255,255,0.2)',
+                          letterSpacing: 0.5,
+                        }}>
+                          Noir + Barretenberg
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -436,12 +555,55 @@ export default function AIChat() {
 
           if (msg.role === 'action-result') {
             const ok = msg.actionResult?.success;
+            const pm = msg.proofMeta;
             return (
               <div key={msg.id} className={`zap-msg ${ok ? 'zap-result-ok' : 'zap-result-fail'}`}>
                 <div className="zap-msg-label" style={{ color: ok ? '#10b981' : '#ef4444' }}>
                   {ok ? 'SUCCESS' : 'FAILED'}
                 </div>
                 <div className="zap-msg-content">{renderContent(msg.content)}</div>
+                {pm && (
+                  <div className={`zap-proof-verified-card ${pm.status === 'verified' ? 'zap-proof-ok' : 'zap-proof-fail'}`}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                      {pm.status === 'verified' ? (
+                        <CheckCircle2 size={12} strokeWidth={2} color="#10b981" />
+                      ) : (
+                        <AlertTriangle size={12} strokeWidth={2} color="#ef4444" />
+                      )}
+                      <span style={{
+                        fontFamily: "'Orbitron', sans-serif",
+                        fontSize: 9,
+                        fontWeight: 700,
+                        color: pm.status === 'verified' ? '#10b981' : '#ef4444',
+                        letterSpacing: 1,
+                      }}>
+                        {pm.status === 'verified' ? 'ZK PROOF VERIFIED ON-CHAIN' : 'PROOF GENERATION FAILED'}
+                      </span>
+                    </div>
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr 1fr',
+                      gap: 8,
+                    }}>
+                      <div className="zap-proof-stat">
+                        <div className="zap-proof-stat-label">CIRCUIT</div>
+                        <div className="zap-proof-stat-value">
+                          {CIRCUIT_LABELS[pm.circuit] ?? pm.circuit.replace(/_/g, ' ')}
+                        </div>
+                      </div>
+                      <div className="zap-proof-stat">
+                        <div className="zap-proof-stat-label">TIME</div>
+                        <div className="zap-proof-stat-value">
+                          {(pm.timeMs / 1000).toFixed(1)}s
+                        </div>
+                      </div>
+                      <div className="zap-proof-stat">
+                        <div className="zap-proof-stat-label">VERIFIER</div>
+                        <div className="zap-proof-stat-value">Garaga</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           }
@@ -482,6 +644,81 @@ export default function AIChat() {
             letterSpacing: 0.5,
           }}>
             {error}
+          </div>
+        )}
+
+        {/* Inline Proof History */}
+        {recentProofs.length > 0 && messages.length > 0 && (
+          <div className="zap-proof-history-inline">
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              marginBottom: 10,
+            }}>
+              <Clock size={10} strokeWidth={1.5} color="rgba(59,130,246,0.5)" />
+              <span style={{
+                fontFamily: "'Orbitron', sans-serif",
+                fontSize: 9,
+                fontWeight: 700,
+                color: 'rgba(59,130,246,0.5)',
+                letterSpacing: 1,
+              }}>
+                RECENT PROOFS
+              </span>
+              <span style={{
+                fontFamily: "'Fira Code', monospace",
+                fontSize: 8,
+                color: 'rgba(255,255,255,0.2)',
+                marginLeft: 'auto',
+              }}>
+                {recentProofs.length} proof{recentProofs.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {recentProofs.map((proof: ProofRecord) => (
+                <div key={proof.id} className="zap-proof-history-row">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{
+                      width: 6,
+                      height: 6,
+                      clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
+                      background: proof.status === 'verified' ? '#10b981' : proof.status === 'pending' ? '#f59e0b' : '#ef4444',
+                      flexShrink: 0,
+                    }} />
+                    <span style={{
+                      fontFamily: "'Fira Code', monospace",
+                      fontSize: 10,
+                      color: 'rgba(255,255,255,0.5)',
+                    }}>
+                      {CIRCUIT_LABELS[proof.circuit] ?? proof.circuit.replace(/_/g, ' ')}
+                    </span>
+                    <span className={proof.status === 'verified' ? 'badge-green' : 'badge-amber'}
+                      style={{ fontSize: 7, padding: '1px 5px' }}>
+                      {proof.status}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {proof.txHash && (
+                      <span style={{
+                        fontFamily: "'Fira Code', monospace",
+                        fontSize: 8,
+                        color: 'rgba(59,130,246,0.4)',
+                      }}>
+                        {proof.txHash.slice(0, 6)}...{proof.txHash.slice(-4)}
+                      </span>
+                    )}
+                    <span style={{
+                      fontFamily: "'Fira Code', monospace",
+                      fontSize: 8,
+                      color: 'rgba(255,255,255,0.2)',
+                    }}>
+                      {new Date(proof.timestamp).toLocaleTimeString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -705,6 +942,80 @@ const chatStyles = `
   .zap-send-btn:disabled {
     opacity: 0.25;
     cursor: not-allowed;
+  }
+
+  /* Proof progress bar */
+  .zap-proof-progress-card {
+    margin-top: 4px;
+    padding: 12px 14px;
+    background: rgba(59,130,246,0.04);
+    border: 1px solid rgba(59,130,246,0.1);
+    clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+  }
+
+  .zap-proof-bar {
+    width: 100%;
+    height: 4px;
+    background: rgba(59,130,246,0.1);
+    overflow: hidden;
+    clip-path: polygon(2px 0, 100% 0, 100% calc(100% - 2px), calc(100% - 2px) 100%, 0 100%, 0 2px);
+  }
+  .zap-proof-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    transition: width 0.5s ease;
+  }
+
+  /* Proof verified card */
+  .zap-proof-verified-card {
+    margin-top: 8px;
+    padding: 12px 16px;
+    clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  }
+  .zap-proof-ok {
+    background: rgba(16,185,129,0.04);
+    border: 1px solid rgba(16,185,129,0.12);
+  }
+  .zap-proof-fail {
+    background: rgba(239,68,68,0.04);
+    border: 1px solid rgba(239,68,68,0.12);
+  }
+  .zap-proof-stat {
+    padding: 6px 8px;
+    background: rgba(255,255,255,0.02);
+    clip-path: polygon(3px 0, 100% 0, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0 100%, 0 3px);
+  }
+  .zap-proof-stat-label {
+    font-family: 'Fira Code', monospace;
+    font-size: 7px;
+    color: rgba(255,255,255,0.25);
+    letter-spacing: 1px;
+    margin-bottom: 3px;
+    text-transform: uppercase;
+  }
+  .zap-proof-stat-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.6);
+    letter-spacing: 0.3px;
+  }
+
+  /* Inline proof history */
+  .zap-proof-history-inline {
+    margin: 8px 0 16px;
+    padding: 14px 16px;
+    background: rgba(59,130,246,0.02);
+    border: 1px solid rgba(59,130,246,0.06);
+    clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  }
+  .zap-proof-history-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    background: rgba(255,255,255,0.015);
+    clip-path: polygon(3px 0, 100% 0, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0 100%, 0 3px);
   }
 
   @media (max-width: 768px) {

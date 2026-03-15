@@ -23,16 +23,28 @@ export const PROOF_TYPE_IDS: Record<CircuitType, number> = {
   [CircuitType.CDP_SAFETY_BOUND]: 7,
 };
 
-const circuitCache = new Map<CircuitType, Uint8Array>();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const artifactCache = new Map<CircuitType, any>();
+const bytecodeCache = new Map<CircuitType, Uint8Array>();
 const vkCache = new Map<CircuitType, Uint8Array>();
 
-export async function loadCircuit(type: CircuitType): Promise<Uint8Array> {
-  if (circuitCache.has(type)) return circuitCache.get(type)!;
+/** Load the full compiled Noir artifact (abi + bytecode string). Used by Noir.js for witness generation. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function loadArtifact(type: CircuitType): Promise<any> {
+  if (artifactCache.has(type)) return artifactCache.get(type)!;
   const resp = await fetch(`/circuits/${type}.json`);
-  if (!resp.ok) throw new Error(`Failed to load circuit: ${type}`);
+  if (!resp.ok) throw new Error(`Failed to load circuit artifact: ${type}`);
   const json = await resp.json();
-  const bytecode = Uint8Array.from(atob(json.bytecode), (c) => c.charCodeAt(0));
-  circuitCache.set(type, bytecode);
+  artifactCache.set(type, json);
+  return json;
+}
+
+/** Load raw bytecode bytes. Used by Barretenberg (bb.js) for proof generation. */
+export async function loadCircuit(type: CircuitType): Promise<Uint8Array> {
+  if (bytecodeCache.has(type)) return bytecodeCache.get(type)!;
+  const artifact = await loadArtifact(type);
+  const bytecode = Uint8Array.from(atob(artifact.bytecode), (c) => c.charCodeAt(0));
+  bytecodeCache.set(type, bytecode);
   return bytecode;
 }
 

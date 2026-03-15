@@ -63,6 +63,12 @@ function buildSessionPolicies() {
     { addr: CONTRACT_ADDRESSES.shieldedVault, methods: ['deposit', 'withdraw', 'shield', 'unshield'] },
     { addr: CONTRACT_ADDRESSES.shieldedCDP, methods: ['open_cdp', 'lock_collateral', 'mint_susd', 'repay', 'close_cdp'] },
     { addr: CONTRACT_ADDRESSES.solvencyProver, methods: ['submit_vault_solvency_proof', 'submit_cdp_safety_proof'] },
+    // ProofVerifier — needed for admin setup (set_verifier_class_hash)
+    { addr: CONTRACT_ADDRESSES.proofVerifier, methods: ['set_verifier_class_hash'] },
+    // xyBTC token — needed for faucet mint + ERC20 approve in deposit/lock multicalls
+    { addr: CONTRACT_ADDRESSES.xyBTC, methods: ['mint', 'approve'] },
+    // Price feed — needed for oracle refresh before CDP operations
+    { addr: CONTRACT_ADDRESSES.priceFeed, methods: ['set_price'] },
   ];
   for (const c of contracts) {
     if (c.addr) {

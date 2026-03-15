@@ -129,6 +129,26 @@ export function generateWitnessInputs(
     inputs.debt = toHex(w.debt);
     inputs.blinding = toHex(w.blinding);
     inputs.debt_commitment = toHex(w.debt_commitment);
+  } else if (type === 'vault_solvency') {
+    const w = data as VaultSolvencyWitness;
+    inputs.total_assets = toHex(w.total_assets);
+    inputs.total_liabilities = toHex(w.total_liabilities);
+    inputs.assets_blinding = toHex(w.assets_blinding);
+    inputs.liabilities_blinding = toHex(w.liabilities_blinding);
+    inputs.assets_commitment = toHex(w.assets_commitment);
+    inputs.liabilities_commitment = toHex(w.liabilities_commitment);
+    inputs.num_accounts = toHex(w.num_accounts);
+  } else if (type === 'cdp_safety_bound') {
+    const w = data as CDPSafetyWitness;
+    inputs.total_collateral = toHex(w.total_collateral);
+    inputs.total_debt = toHex(w.total_debt);
+    inputs.collateral_blinding = toHex(w.collateral_blinding);
+    inputs.debt_blinding = toHex(w.debt_blinding);
+    inputs.collateral_commitment = toHex(w.collateral_commitment);
+    inputs.debt_commitment = toHex(w.debt_commitment);
+    inputs.price = toHex(w.price);
+    inputs.safety_ratio_percent = toHex(w.min_ratio);
+    inputs.num_cdps = toHex(w.num_cdps);
   }
 
   return inputs;

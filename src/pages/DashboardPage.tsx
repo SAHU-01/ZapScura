@@ -7,6 +7,7 @@
  * - Proof history
  */
 
+import { useState, useEffect } from 'react';
 import { TrendingUp, Zap, Clock } from 'lucide-react';
 import { useWallet } from '../hooks/useWallet';
 import AIChat from '../components/AIChat';
@@ -15,7 +16,16 @@ import { loadProofHistory, type ProofRecord } from '../lib/proofHistory';
 
 export default function DashboardPage() {
   const { address } = useWallet();
-  const proofs = address ? loadProofHistory(address) : [];
+  const [proofs, setProofs] = useState<ProofRecord[]>([]);
+
+  // Poll proof history every 3 seconds to stay in sync
+  useEffect(() => {
+    if (!address) { setProofs([]); return; }
+    const refresh = () => setProofs(loadProofHistory(address));
+    refresh();
+    const interval = setInterval(refresh, 3000);
+    return () => clearInterval(interval);
+  }, [address]);
 
   return (
     <div style={{

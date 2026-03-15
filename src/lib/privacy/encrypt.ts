@@ -1,6 +1,8 @@
 /**
  * ElGamal encryption + Pedersen commitments for shielded amounts.
- * Ported from Obscura.
+ *
+ * Uses Barretenberg's native Pedersen (Grumpkin curve)
+ * to match the Noir circuit's std::hash::pedersen_commitment / pedersen_hash.
  */
 
 /** ElGamal ciphertext: two curve points (c1, c2) */
@@ -14,8 +16,6 @@ const FELT252_MAX = (BigInt(1) << BigInt(252)) - BigInt(1);
 const SUBGROUP_ORDER = BigInt('2736030358979909402780800718157159386076813972158567259200215660948447373041');
 const GEN_X = BigInt('5299619240641551281634865583518297030282874472190772894086521144482721001553');
 const GEN_Y = BigInt('16950150798460657717958625567821834550301663161624707787222815936182638968203');
-const H_X = BigInt('9671717474070082183213120505906694280345674901098722789458757420325286642825');
-const H_Y = BigInt('14655019877793856891887000922277836972901573616510047188681961816651715360982');
 
 function modpow(base: bigint, exp: bigint, mod: bigint): bigint {
   let result = BigInt(1);
@@ -54,12 +54,139 @@ function scalarMul(scalar: bigint, px: bigint, py: bigint): [bigint, bigint] {
   return [rx, ry];
 }
 
-/** Pedersen commitment: C = value * G + blinding * H (mod P) */
-export function pedersenCommit(value: bigint, blinding: bigint): bigint {
-  const [vgx, vgy] = scalarMul(value, GEN_X, GEN_Y);
-  const [bhx, bhy] = scalarMul(blinding, H_X, H_Y);
-  const [cx] = pointAdd(vgx, vgy, bhx, bhy);
-  return cx;
+/* ---- Barretenberg-backed Pedersen ---- */
+
+// Singleton bb instance (lazy-initialized)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let bbInstance: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let bbInitPromise: Promise<any> | null = null;
+
+// Which Pedersen variant the circuit uses (auto-detected on first call)
+let pedersenMode: 'commit' | 'hash' | null = null;
+
+/** Convert a bigint to a 32-byte big-endian Uint8Array (Fr format) */
+function bigintToFr(val: bigint): Uint8Array {
+  const buf = new Uint8Array(32);
+  let v = val;
+  for (let i = 31; i >= 0; i--) {
+    buf[i] = Number(v & BigInt(0xff));
+    v >>= BigInt(8);
+  }
+  return buf;
+}
+
+/** Convert a 32-byte big-endian Uint8Array back to bigint */
+function frToBigint(buf: Uint8Array): bigint {
+  let val = BigInt(0);
+  for (let i = 0; i < buf.length; i++) {
+    val = (val << BigInt(8)) | BigInt(buf[i]);
+  }
+  return val;
+}
+
+/** Get or initialize the Barretenberg singleton */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getBb(): Promise<any> {
+  if (bbInstance) return bbInstance;
+  if (bbInitPromise) return bbInitPromise;
+  bbInitPromise = (async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const bbModule: any = await import('@aztec/bb.js');
+    const Barretenberg = bbModule.Barretenberg || bbModule.default?.Barretenberg;
+    bbInstance = await Barretenberg.new({ threads: 1 });
+    return bbInstance;
+  })();
+  return bbInitPromise;
+}
+
+/** Compute pedersen_commitment([value, blinding]).x using Barretenberg */
+async function bbPedersenCommitX(value: bigint, blinding: bigint): Promise<bigint> {
+  const bb = await getBb();
+  const inputs = [bigintToFr(value), bigintToFr(blinding)];
+  const result = await bb.pedersenCommit({ inputs, hashIndex: 0 });
+  return frToBigint(result.point.x);
+}
+
+/** Compute pedersen_hash([value, blinding]) using Barretenberg */
+async function bbPedersenHash(value: bigint, blinding: bigint): Promise<bigint> {
+  const bb = await getBb();
+  const inputs = [bigintToFr(value), bigintToFr(blinding)];
+  const result = await bb.pedersenHash({ inputs, hashIndex: 0 });
+  return frToBigint(result.hash);
+}
+
+/**
+ * Pedersen commitment using Barretenberg — matches Noir circuit.
+ *
+ * On first call, auto-detects whether the circuit uses pedersen_commitment
+ * or pedersen_hash by trying the range_proof circuit with known test values.
+ * Caches the result for subsequent calls.
+ */
+export async function pedersenCommit(value: bigint, blinding: bigint): Promise<bigint> {
+  if (pedersenMode === 'hash') {
+    return bbPedersenHash(value, blinding);
+  }
+  if (pedersenMode === 'commit') {
+    return bbPedersenCommitX(value, blinding);
+  }
+
+  // Auto-detect: try pedersen_commitment first, then pedersen_hash
+  // We detect by attempting witness execution with the range_proof circuit
+  try {
+    const commitResult = await bbPedersenCommitX(value, blinding);
+
+    // Try executing the circuit with this commitment to verify
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const noirModule: any = await import('@noir-lang/noir_js');
+    const { loadArtifact } = await import('../proofs/circuits');
+    const { CircuitType } = await import('../proofs/circuits');
+    const artifact = await loadArtifact(CircuitType.RANGE_PROOF);
+    const Noir = noirModule.Noir || noirModule.default?.Noir;
+    const noir = new Noir(artifact);
+
+    const testValue = value;
+    const testBlinding = blinding;
+    const MAX_U64 = BigInt(2) ** BigInt(64) - BigInt(1);
+    const toHex = (v: bigint) => `0x${v.toString(16).padStart(64, '0')}`;
+
+    try {
+      await noir.execute({
+        value: toHex(testValue),
+        blinding: toHex(testBlinding),
+        commitment: toHex(commitResult),
+        max_value: toHex(MAX_U64),
+      });
+      // pedersen_commitment works!
+      pedersenMode = 'commit';
+      console.log('[ZapScura] Pedersen mode: commitment (point.x)');
+      return commitResult;
+    } catch {
+      // Try pedersen_hash
+      const hashResult = await bbPedersenHash(testValue, testBlinding);
+      try {
+        await noir.execute({
+          value: toHex(testValue),
+          blinding: toHex(testBlinding),
+          commitment: toHex(hashResult),
+          max_value: toHex(MAX_U64),
+        });
+        pedersenMode = 'hash';
+        console.log('[ZapScura] Pedersen mode: hash');
+        return hashResult;
+      } catch {
+        // Neither worked — throw with details
+        throw new Error(
+          `Pedersen auto-detect failed. commitment(${testValue},${testBlinding})=${commitResult}, hash=${hashResult}. Neither matches the circuit.`
+        );
+      }
+    }
+  } catch (err) {
+    // If auto-detect itself fails (e.g., bb init error), fall back to commitment
+    console.error('[ZapScura] Pedersen auto-detect error, falling back to commitment:', err);
+    pedersenMode = 'commit';
+    return bbPedersenCommitX(value, blinding);
+  }
 }
 
 /** Find a valid blinding factor that produces a felt252-range commitment */
@@ -69,12 +196,15 @@ export async function findValidBlinding(
 ): Promise<{ blinding: bigint; commitment: bigint }> {
   for (let i = startOffset; i < startOffset + 1000; i++) {
     const blinding = BigInt(i + 1);
-    const commitment = pedersenCommit(value, blinding);
+    const commitment = await pedersenCommit(value, blinding);
     if (commitment > BigInt(0) && commitment <= FELT252_MAX) {
       return { blinding, commitment };
     }
   }
-  return { blinding: BigInt(1), commitment: pedersenCommit(value, BigInt(1)) };
+  // Fallback (should rarely happen)
+  const blinding = BigInt(1);
+  const commitment = await pedersenCommit(value, blinding);
+  return { blinding, commitment };
 }
 
 /** Compute ElGamal ciphertext delta for balance update */

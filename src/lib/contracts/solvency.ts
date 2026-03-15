@@ -4,8 +4,8 @@
  */
 
 import { type AccountInterface, RpcProvider } from 'starknet';
-import { CONTRACT_ADDRESSES, IS_DEVNET, getRpcUrl } from './config';
-import { CircuitType, loadVK } from '../proofs/circuits';
+import { CONTRACT_ADDRESSES, IS_DEVNET, DEVNET_RESOURCE_BOUNDS, getRpcUrl } from './config';
+import { CircuitType } from '../proofs/circuits';
 import { generateProof, type ProgressCallback } from '../proofs/prover';
 import { encodeGaragaCalldata, bytesToFelts } from '../proofs/calldata';
 import { findValidBlinding } from '../privacy/encrypt';
@@ -156,9 +156,11 @@ export async function getProver(
   return result[0];
 }
 
+const execOpts = () => IS_DEVNET ? DEVNET_RESOURCE_BOUNDS : {};
+
 /** On devnet, MockProofVerifier accepts anything — skip real proof generation */
 const SKIP_PROOFS = IS_DEVNET;
-const MOCK_PROOF = { proof: new Uint8Array([0xde, 0xad]), publicInputs: ['0x0'] };
+const MOCK_PROOF = { proof: new Uint8Array([0xde, 0xad]), publicInputs: ['0x0'], vk: new Uint8Array() };
 
 function toHex(v: bigint): string {
   return '0x' + v.toString(16);
@@ -201,8 +203,7 @@ export async function submitVaultSolvencyProof(
   if (SKIP_PROOFS) {
     proofData = bytesToFelts(proof.proof);
   } else {
-    const vk = await loadVK(CircuitType.VAULT_SOLVENCY);
-    proofData = await encodeGaragaCalldata(proof.proof, proof.publicInputs, vk);
+    proofData = await encodeGaragaCalldata(proof.proof, proof.publicInputs, proof.vk);
   }
 
   onProgress?.({ stage: 'submitting', percent: 92, message: 'Submitting vault solvency tx...' });
@@ -215,11 +216,15 @@ export async function submitVaultSolvencyProof(
     ...proofData,                         // proof_data elements
   ];
 
-  const result = await account.execute({
-    contractAddress: solvencyAddr(),
-    entrypoint: 'submit_vault_solvency_proof',
-    calldata,
-  });
+  const result = await account.execute(
+    {
+      contractAddress: solvencyAddr(),
+      entrypoint: 'submit_vault_solvency_proof',
+      calldata,
+    },
+    undefined,
+    execOpts(),
+  );
 
   onProgress?.({ stage: 'confirming', percent: 96, message: 'Waiting for confirmation...' });
   return result.transaction_hash;
@@ -267,8 +272,7 @@ export async function submitCdpSafetyProof(
   if (SKIP_PROOFS) {
     proofData = bytesToFelts(proof.proof);
   } else {
-    const vk = await loadVK(CircuitType.CDP_SAFETY_BOUND);
-    proofData = await encodeGaragaCalldata(proof.proof, proof.publicInputs, vk);
+    proofData = await encodeGaragaCalldata(proof.proof, proof.publicInputs, proof.vk);
   }
 
   onProgress?.({ stage: 'submitting', percent: 92, message: 'Submitting CDP safety tx...' });
@@ -283,11 +287,15 @@ export async function submitCdpSafetyProof(
     ...proofData,                          // proof_data elements
   ];
 
-  const result = await account.execute({
-    contractAddress: solvencyAddr(),
-    entrypoint: 'submit_cdp_safety_proof',
-    calldata,
-  });
+  const result = await account.execute(
+    {
+      contractAddress: solvencyAddr(),
+      entrypoint: 'submit_cdp_safety_proof',
+      calldata,
+    },
+    undefined,
+    execOpts(),
+  );
 
   onProgress?.({ stage: 'confirming', percent: 96, message: 'Waiting for confirmation...' });
   return result.transaction_hash;
