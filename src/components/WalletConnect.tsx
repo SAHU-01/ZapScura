@@ -17,12 +17,12 @@ export default function WalletConnect() {
                         authMethod === 'email' ? 'Email' : 'Wallet';
 
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div className="wallet-addr-pill" style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 8,
-          padding: '6px 14px',
+          gap: 6,
+          padding: '6px 10px',
           background: 'rgba(59,130,246,0.04)',
           border: '1px solid rgba(59,130,246,0.12)',
           clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)',
@@ -30,11 +30,12 @@ export default function WalletConnect() {
           <div style={{
             width: 6,
             height: 6,
+            flexShrink: 0,
             clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
             background: '#10b981',
             boxShadow: '0 0 8px rgba(16,185,129,0.6)',
           }} />
-          <span style={{
+          <span className="wallet-addr-text" style={{
             fontFamily: "'Fira Code', monospace",
             fontSize: 11,
             color: 'rgba(255,255,255,0.6)',
@@ -42,7 +43,7 @@ export default function WalletConnect() {
           }}>
             {shortAddr}
           </span>
-          <span className="badge-shield" style={{ fontSize: 7, padding: '2px 6px' }}>
+          <span className="badge-shield wallet-method-badge" style={{ fontSize: 7, padding: '2px 6px' }}>
             {methodLabel}
           </span>
         </div>
@@ -55,7 +56,7 @@ export default function WalletConnect() {
           }}
         >
           <LogOut size={10} strokeWidth={2} />
-          Disconnect
+          <span className="disconnect-text">Disconnect</span>
         </button>
       </div>
     );

@@ -27,8 +27,50 @@ import {
   Globe,
   Code,
   Network,
+  Trophy,
+  Flame,
+  Star,
+  Swords,
+  Atom,
+  Github,
+  FileText,
+  ExternalLink,
 } from 'lucide-react';
 import ZapScuraLogo, { logoStyles } from '../components/ZapScuraLogo';
+import { useScrollReveal } from '../hooks/useScrollReveal';
+
+/**
+ * Scroll-reveal wrapper. Children fade/slide up when scrolled into view.
+ * `delay` staggers multiple items. `direction` controls slide origin.
+ */
+function Reveal({ children, delay = 0, direction = 'up', className = '' }: {
+  children: React.ReactNode;
+  delay?: number;
+  direction?: 'up' | 'left' | 'right' | 'scale';
+  className?: string;
+}) {
+  const [ref, isVisible] = useScrollReveal<HTMLDivElement>();
+  const transforms: Record<string, string> = {
+    up: 'translateY(40px)',
+    left: 'translateX(-40px)',
+    right: 'translateX(40px)',
+    scale: 'scale(0.92)',
+  };
+  return (
+    <div
+      ref={ref as React.RefObject<HTMLDivElement>}
+      className={className}
+      style={{
+        opacity: isVisible ? 1 : 0,
+        transform: isVisible ? 'none' : transforms[direction],
+        transition: `opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1) ${delay}s, transform 0.7s cubic-bezier(0.16, 1, 0.3, 1) ${delay}s`,
+        willChange: 'opacity, transform',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
 
 /* ─── Typing animation sequences ─── */
 const DEMO_SEQUENCES = [
@@ -254,6 +296,7 @@ const CODE_LINES = [
 function AnimatedCodeBlock() {
   const [visibleLines, setVisibleLines] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
+  const [phase, setPhase] = useState<'typing' | 'done' | 'resetting'>('typing');
   const blockRef = useRef<HTMLDivElement>(null);
 
   // Intersection observer to trigger animation when scrolled into view
@@ -270,14 +313,34 @@ function AnimatedCodeBlock() {
     return () => observer.disconnect();
   }, [isVisible]);
 
-  // Animate lines appearing one by one
+  // Animate lines appearing one by one, then loop
   useEffect(() => {
     if (!isVisible) return;
-    if (visibleLines >= CODE_LINES.length) return;
-    const delay = CODE_LINES[visibleLines].type === 'blank' ? 80 : 120 + Math.random() * 80;
-    const t = setTimeout(() => setVisibleLines(v => v + 1), delay);
-    return () => clearTimeout(t);
-  }, [isVisible, visibleLines]);
+
+    if (phase === 'typing') {
+      if (visibleLines >= CODE_LINES.length) {
+        // All lines shown — move to done phase
+        setPhase('done');
+        return;
+      }
+      const delay = CODE_LINES[visibleLines].type === 'blank' ? 80 : 120 + Math.random() * 80;
+      const t = setTimeout(() => setVisibleLines(v => v + 1), delay);
+      return () => clearTimeout(t);
+    }
+
+    if (phase === 'done') {
+      // Pause 3 seconds then reset
+      const t = setTimeout(() => setPhase('resetting'), 3000);
+      return () => clearTimeout(t);
+    }
+
+    if (phase === 'resetting') {
+      // Reset and start over
+      setVisibleLines(0);
+      const t = setTimeout(() => setPhase('typing'), 600);
+      return () => clearTimeout(t);
+    }
+  }, [isVisible, visibleLines, phase]);
 
   const getLineColor = (type: string) => {
     switch (type) {
@@ -294,10 +357,16 @@ function AnimatedCodeBlock() {
           INTEGRATION EXAMPLE
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {isVisible && visibleLines < CODE_LINES.length && (
+          {isVisible && phase === 'typing' && visibleLines < CODE_LINES.length && (
             <span className="terminal-processing">
               <span className="processing-dot" />
               TYPING
+            </span>
+          )}
+          {phase === 'done' && (
+            <span className="terminal-processing" style={{ color: 'rgba(16,185,129,0.6)' }}>
+              <span className="processing-dot" style={{ background: '#10b981' }} />
+              LOOPING
             </span>
           )}
           <span style={{ color: 'rgba(59,130,246,0.4)', fontFamily: "'Fira Code', monospace", fontSize: 8 }}>
@@ -320,10 +389,10 @@ function AnimatedCodeBlock() {
               {'\n'}
             </div>
           ))}
-          {isVisible && visibleLines < CODE_LINES.length && (
+          {phase === 'typing' && visibleLines < CODE_LINES.length && (
             <span className="typing-cursor" style={{ color: '#8b5cf6' }}>▌</span>
           )}
-          {visibleLines >= CODE_LINES.length && (
+          {phase === 'done' && (
             <div className="code-complete-badge">
               <span className="badge-green" style={{ fontSize: 7 }}>READY TO INTEGRATE</span>
             </div>
@@ -386,6 +455,7 @@ export default function HomePage() {
             <a href="#features" className="home-nav-link">Features</a>
             <a href="#how-it-works" className="home-nav-link">How It Works</a>
             <a href="#tech" className="home-nav-link">Technology</a>
+            <a href="#gamification" className="home-nav-link">Gamification</a>
             <a href="#starkzap" className="home-nav-link">Starkzap</a>
           </nav>
 
@@ -448,15 +518,17 @@ export default function HomePage() {
       {/* ═══════ FEATURES ═══════ */}
       <section id="features" className="home-section">
         <div className="home-section-inner">
-          <div className="home-section-header">
-            <span className="home-section-tag">FEATURES</span>
-            <h2 className="home-section-title">
-              DeFi Without The <span className="gradient-text">Complexity</span>
-            </h2>
-            <p className="home-section-desc">
-              Everything you need to earn yield privately — wrapped in a conversational interface
-            </p>
-          </div>
+          <Reveal>
+            <div className="home-section-header">
+              <span className="home-section-tag">FEATURES</span>
+              <h2 className="home-section-title">
+                DeFi Without The <span className="gradient-text">Complexity</span>
+              </h2>
+              <p className="home-section-desc">
+                Everything you need to earn yield privately — wrapped in a conversational interface
+              </p>
+            </div>
+          </Reveal>
 
           <div className="home-features-grid">
             {[
@@ -497,16 +569,18 @@ export default function HomePage() {
                 color: '#ef4444',
               },
             ].map((f, i) => (
-              <div key={i} className="home-feature-card">
-                <div className="home-feature-icon" style={{
-                  background: `${f.color}08`,
-                  border: `1px solid ${f.color}18`,
-                }}>
-                  <f.Icon size={20} strokeWidth={1.5} color={f.color} />
+              <Reveal key={i} delay={i * 0.1}>
+                <div className="home-feature-card">
+                  <div className="home-feature-icon" style={{
+                    background: `${f.color}08`,
+                    border: `1px solid ${f.color}18`,
+                  }}>
+                    <f.Icon size={20} strokeWidth={1.5} color={f.color} />
+                  </div>
+                  <h3 className="home-feature-title">{f.title}</h3>
+                  <p className="home-feature-desc">{f.desc}</p>
                 </div>
-                <h3 className="home-feature-title">{f.title}</h3>
-                <p className="home-feature-desc">{f.desc}</p>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -515,12 +589,14 @@ export default function HomePage() {
       {/* ═══════ HOW IT WORKS ═══════ */}
       <section id="how-it-works" className="home-section" style={{ background: 'rgba(59,130,246,0.01)' }}>
         <div className="home-section-inner">
-          <div className="home-section-header">
-            <span className="home-section-tag">HOW IT WORKS</span>
-            <h2 className="home-section-title">
-              Three Steps to <span className="gradient-text">Private Yield</span>
-            </h2>
-          </div>
+          <Reveal>
+            <div className="home-section-header">
+              <span className="home-section-tag">HOW IT WORKS</span>
+              <h2 className="home-section-title">
+                Three Steps to <span className="gradient-text">Private Yield</span>
+              </h2>
+            </div>
+          </Reveal>
 
           <div className="home-steps">
             {[
@@ -543,14 +619,16 @@ export default function HomePage() {
                 Icon: TrendingUp,
               },
             ].map((s, i) => (
-              <div key={i} className="home-step-card">
-                <div className="home-step-number">{s.step}</div>
-                <div className="home-step-icon">
-                  <s.Icon size={24} strokeWidth={1.2} color="#3b82f6" />
+              <Reveal key={i} delay={i * 0.15} direction={i === 0 ? 'left' : i === 2 ? 'right' : 'up'}>
+                <div className="home-step-card">
+                  <div className="home-step-number">{s.step}</div>
+                  <div className="home-step-icon">
+                    <s.Icon size={24} strokeWidth={1.2} color="#3b82f6" />
+                  </div>
+                  <h3 className="home-step-title">{s.title}</h3>
+                  <p className="home-step-desc">{s.desc}</p>
                 </div>
-                <h3 className="home-step-title">{s.title}</h3>
-                <p className="home-step-desc">{s.desc}</p>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -559,15 +637,17 @@ export default function HomePage() {
       {/* ═══════ TECHNOLOGY ═══════ */}
       <section id="tech" className="home-section">
         <div className="home-section-inner">
-          <div className="home-section-header">
-            <span className="home-section-tag">TECHNOLOGY</span>
-            <h2 className="home-section-title">
-              Powered by <span className="gradient-text">Cutting-Edge ZK</span>
-            </h2>
-            <p className="home-section-desc">
-              State-of-the-art cryptography and zero-knowledge proofs ensure your privacy
-            </p>
-          </div>
+          <Reveal>
+            <div className="home-section-header">
+              <span className="home-section-tag">TECHNOLOGY</span>
+              <h2 className="home-section-title">
+                Powered by <span className="gradient-text">Cutting-Edge ZK</span>
+              </h2>
+              <p className="home-section-desc">
+                State-of-the-art cryptography and zero-knowledge proofs ensure your privacy
+              </p>
+            </div>
+          </Reveal>
 
           <div className="home-tech-grid">
             {[
@@ -578,41 +658,248 @@ export default function HomePage() {
               { label: 'Starknet', desc: 'L2 scalability', Icon: Layers },
               { label: 'Pedersen Commitments', desc: 'Amount hiding', Icon: Eye },
             ].map((t, i) => (
-              <div key={i} className="home-tech-item">
-                <t.Icon size={16} strokeWidth={1.5} color="#3b82f6" />
-                <div>
-                  <div style={{
-                    fontFamily: "'Orbitron', sans-serif",
-                    fontSize: 10,
-                    fontWeight: 600,
-                    color: 'rgba(255,255,255,0.8)',
-                    letterSpacing: 0.5,
-                  }}>{t.label}</div>
-                  <div style={{
-                    fontFamily: "'Fira Code', monospace",
-                    fontSize: 9,
-                    color: 'rgba(255,255,255,0.3)',
-                    marginTop: 2,
-                  }}>{t.desc}</div>
+              <Reveal key={i} delay={i * 0.08} direction={i % 2 === 0 ? 'left' : 'right'}>
+                <div className="home-tech-item">
+                  <t.Icon size={16} strokeWidth={1.5} color="#3b82f6" />
+                  <div>
+                    <div style={{
+                      fontFamily: "'Orbitron', sans-serif",
+                      fontSize: 10,
+                      fontWeight: 600,
+                      color: 'rgba(255,255,255,0.8)',
+                      letterSpacing: 0.5,
+                    }}>{t.label}</div>
+                    <div style={{
+                      fontFamily: "'Fira Code', monospace",
+                      fontSize: 9,
+                      color: 'rgba(255,255,255,0.3)',
+                      marginTop: 2,
+                    }}>{t.desc}</div>
+                  </div>
                 </div>
-              </div>
+              </Reveal>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ═══════ GAMIFICATION ═══════ */}
+      <section id="gamification" className="home-section" style={{ background: 'rgba(139,92,246,0.015)' }}>
+        <div className="home-section-inner">
+          <Reveal>
+            <div className="home-section-header">
+              <span className="home-section-tag">GAMIFICATION</span>
+              <h2 className="home-section-title">
+                Privacy is a <span className="gradient-text">Game You Win</span>
+              </h2>
+              <p className="home-section-desc">
+                Earn XP, level up your agent, unlock achievements, and compete on the leaderboard — all while protecting your assets
+              </p>
+            </div>
+          </Reveal>
+
+          {/* XP progression visual */}
+          <div className="gamification-showcase">
+            <div className="gamification-levels">
+              {[
+                { rank: 1, title: 'Initiate', color: '#6b7280', xp: '0 XP' },
+                { rank: 2, title: 'Cipher', color: '#3b82f6', xp: '100 XP' },
+                { rank: 3, title: 'Shadow', color: '#8b5cf6', xp: '500 XP' },
+                { rank: 4, title: 'Phantom', color: '#f59e0b', xp: '1500 XP' },
+                { rank: 5, title: 'Spectre', color: '#ef4444', xp: '5000 XP' },
+              ].map((level, i) => (
+                <Reveal key={i} delay={i * 0.1} direction="left">
+                  <div className="gamification-level-card" style={{ '--level-color': level.color } as React.CSSProperties}>
+                    <div className="level-rank" style={{ color: level.color }}>Lv.{level.rank}</div>
+                    <div className="level-title" style={{ color: level.color }}>{level.title}</div>
+                    <div className="level-xp">{level.xp}</div>
+                    <div className="level-bar">
+                      <div className="level-bar-fill" style={{
+                        width: `${(i + 1) * 20}%`,
+                        background: `linear-gradient(90deg, ${level.color}80, ${level.color})`,
+                        boxShadow: `0 0 12px ${level.color}40`,
+                      }} />
+                    </div>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+
+            <div className="gamification-features">
+              {[
+                {
+                  Icon: Star,
+                  title: 'XP & Leveling',
+                  desc: 'Every action earns XP — staking, shielding, generating proofs. Level up to unlock new titles and abilities.',
+                  color: '#f59e0b',
+                },
+                {
+                  Icon: Trophy,
+                  title: 'Achievement Badges',
+                  desc: 'Collect rare badges like "First Shield", "CDP Master", and "Shadow Protocol" by hitting privacy milestones.',
+                  color: '#8b5cf6',
+                },
+                {
+                  Icon: Flame,
+                  title: 'Daily Streaks',
+                  desc: 'Maintain your streak by using ZapScura daily. Longer streaks multiply your XP gains up to 3x.',
+                  color: '#ef4444',
+                },
+                {
+                  Icon: Swords,
+                  title: 'Quest System',
+                  desc: 'Complete quests like "Go Dark" and "Trust Verifier" to earn bonus XP and unlock exclusive rewards.',
+                  color: '#10b981',
+                },
+              ].map((f, i) => (
+                <Reveal key={i} delay={i * 0.12} direction="right">
+                  <div className="gamification-feature-card">
+                    <div className="gamification-feature-icon" style={{
+                      background: `${f.color}0a`,
+                      border: `1px solid ${f.color}18`,
+                    }}>
+                      <f.Icon size={18} strokeWidth={1.5} color={f.color} />
+                    </div>
+                    <div>
+                      <h3 className="gamification-feature-title">{f.title}</h3>
+                      <p className="gamification-feature-desc">{f.desc}</p>
+                    </div>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════ FUTURE SCOPE — QUANTUM RESISTANCE ═══════ */}
+      <section id="quantum" className="home-section quantum-section">
+        {/* Animated background grid for quantum feel */}
+        <div className="quantum-bg-grid" />
+        <div className="quantum-bg-glow" />
+
+        <div className="home-section-inner" style={{ position: 'relative', zIndex: 2 }}>
+          <Reveal>
+            <div className="home-section-header">
+              <span className="home-section-tag" style={{ color: '#00e5ff' }}>FUTURE SCOPE</span>
+              <h2 className="home-section-title">
+                Building Towards <span style={{
+                  background: 'linear-gradient(135deg, #00e5ff 0%, #8b5cf6 50%, #3b82f6 100%)',
+                  backgroundSize: '200% 200%',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                  animation: 'gradient-shift 4s ease infinite',
+                }}>Quantum Resistance</span>
+              </h2>
+              <p className="home-section-desc" style={{ maxWidth: 560 }}>
+                Today's encryption won't survive tomorrow's quantum computers. ZapScura's architecture is designed to evolve — and STARKs are already quantum-safe.
+              </p>
+            </div>
+          </Reveal>
+
+          {/* Progress connector line */}
+          <Reveal delay={0.2}>
+            <div className="quantum-progress-bar">
+              <div className="quantum-progress-fill" />
+              <div className="quantum-progress-dot quantum-progress-dot-1" />
+              <div className="quantum-progress-dot quantum-progress-dot-2" />
+              <div className="quantum-progress-dot quantum-progress-dot-3" />
+            </div>
+          </Reveal>
+
+          <div className="quantum-timeline">
+            {[
+              {
+                phase: 'NOW',
+                title: 'Classical ZK Privacy',
+                desc: 'ElGamal encryption, Pedersen commitments, Noir ZK circuits, and Garaga on-chain verification — production-grade privacy today.',
+                icon: Shield,
+                color: '#3b82f6',
+                active: true,
+                detail: 'Noir + Garaga + ElGamal',
+              },
+              {
+                phase: 'NEXT',
+                title: 'Lattice-Based Commitments',
+                desc: 'Migrating Pedersen commitments to lattice-based schemes (RLWE). Resistant to Shor\'s algorithm. Drop-in replacement for our proof circuits.',
+                icon: Layers,
+                color: '#8b5cf6',
+                active: false,
+                detail: 'RLWE + Module-LWE',
+              },
+              {
+                phase: 'HORIZON',
+                title: 'Post-Quantum ZK Proofs',
+                desc: 'STARKs are already quantum-resistant by design. As Starknet\'s prover evolves, ZapScura inherits PQ security natively.',
+                icon: Atom,
+                color: '#00e5ff',
+                active: false,
+                detail: 'Hash-based STARKs',
+              },
+            ].map((item, i) => (
+              <Reveal key={i} delay={0.15 + i * 0.2} direction="up">
+                <div className={`quantum-card ${item.active ? 'quantum-card-active' : ''}`}
+                  style={{ '--q-color': item.color } as React.CSSProperties}>
+                  <div className="quantum-phase" style={{ color: item.color }}>{item.phase}</div>
+                  <div className="quantum-icon" style={{
+                    background: `${item.color}0a`,
+                    border: `1px solid ${item.color}20`,
+                  }}>
+                    <item.icon size={24} strokeWidth={1.2} color={item.color} />
+                    {item.active && <div className="quantum-icon-pulse" style={{ borderColor: `${item.color}30` }} />}
+                  </div>
+                  <h3 className="quantum-title">{item.title}</h3>
+                  <p className="quantum-desc">{item.desc}</p>
+                  <div className="quantum-detail" style={{ color: `${item.color}80` }}>{item.detail}</div>
+                  {item.active && (
+                    <div className="quantum-live-badge">
+                      <div className="quantum-live-dot" />
+                      LIVE
+                    </div>
+                  )}
+                </div>
+              </Reveal>
+            ))}
+          </div>
+
+          <Reveal delay={0.8}>
+            <div className="quantum-note">
+              <div className="quantum-note-icon">
+                <Atom size={16} strokeWidth={1.5} color="#00e5ff" />
+              </div>
+              <div>
+                <div style={{
+                  fontFamily: "'Orbitron', sans-serif",
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: 'rgba(0,229,255,0.6)',
+                  letterSpacing: 1,
+                  marginBottom: 6,
+                }}>WHY STARKs ARE QUANTUM-SAFE</div>
+                <span>
+                  STARKs use hash-based cryptography (no elliptic curves) — inherently resistant to quantum attacks via Shor's and Grover's algorithms. ZapScura on Starknet is future-proof by architecture, not by patch.
+                </span>
+              </div>
+            </div>
+          </Reveal>
         </div>
       </section>
 
       {/* ═══════ STARKZAP SDK ═══════ */}
       <section id="starkzap" className="home-section" style={{ background: 'rgba(139,92,246,0.01)' }}>
         <div className="home-section-inner">
-          <div className="home-section-header">
-            <span className="home-section-tag">BUILT WITH STARKZAP</span>
-            <h2 className="home-section-title">
-              Powered by the <span className="gradient-text">Starkzap SDK</span>
-            </h2>
-            <p className="home-section-desc">
-              Starkzap provides the infrastructure that makes ZapScura seamless — from social login to gasless execution
-            </p>
-          </div>
+          <Reveal>
+            <div className="home-section-header">
+              <span className="home-section-tag">BUILT WITH STARKZAP</span>
+              <h2 className="home-section-title">
+                Powered by the <span className="gradient-text">Starkzap SDK</span>
+              </h2>
+              <p className="home-section-desc">
+                Starkzap provides the infrastructure that makes ZapScura seamless — from social login to gasless execution
+              </p>
+            </div>
+          </Reveal>
 
           <div className="starkzap-grid">
             {[
@@ -659,19 +946,21 @@ export default function HomePage() {
                 color: '#ef4444',
               },
             ].map((item, i) => (
-              <div key={i} className="starkzap-card">
-                <div className="starkzap-card-tag" style={{ color: item.color }}>{item.tag}</div>
-                <div className="starkzap-card-header">
-                  <div className="starkzap-icon" style={{
-                    background: `${item.color}0a`,
-                    border: `1px solid ${item.color}20`,
-                  }}>
-                    <item.Icon size={18} strokeWidth={1.5} color={item.color} />
+              <Reveal key={i} delay={i * 0.1} direction={i < 3 ? 'up' : 'scale'}>
+                <div className="starkzap-card">
+                  <div className="starkzap-card-tag" style={{ color: item.color }}>{item.tag}</div>
+                  <div className="starkzap-card-header">
+                    <div className="starkzap-icon" style={{
+                      background: `${item.color}0a`,
+                      border: `1px solid ${item.color}20`,
+                    }}>
+                      <item.Icon size={18} strokeWidth={1.5} color={item.color} />
+                    </div>
+                    <h3 className="starkzap-card-title">{item.title}</h3>
                   </div>
-                  <h3 className="starkzap-card-title">{item.title}</h3>
+                  <p className="starkzap-card-desc">{item.desc}</p>
                 </div>
-                <p className="starkzap-card-desc">{item.desc}</p>
-              </div>
+              </Reveal>
             ))}
           </div>
 
@@ -682,66 +971,216 @@ export default function HomePage() {
 
       {/* ═══════ CTA ═══════ */}
       <section className="home-cta-section">
+        {/* Animated orbiting rings */}
+        <div className="cta-orbit cta-orbit-1" />
+        <div className="cta-orbit cta-orbit-2" />
+        <div className="cta-orbit cta-orbit-3" />
+
         <div className="home-cta-inner">
+          {/* Floating particle dots */}
+          <div className="cta-particles">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div key={i} className="cta-particle" style={{
+                left: `${8 + (i * 7.5) % 84}%`,
+                top: `${12 + ((i * 13) % 76)}%`,
+                animationDelay: `${i * 0.4}s`,
+                animationDuration: `${3 + (i % 3)}s`,
+              }} />
+            ))}
+          </div>
+
+          {/* Shield icon */}
+          <div className="cta-icon-wrap">
+            <Shield size={28} strokeWidth={1.2} color="#3b82f6" />
+            <div className="cta-icon-ring" />
+            <div className="cta-icon-ring cta-icon-ring-2" />
+          </div>
+
+          {/* Tagline */}
+          <div style={{
+            fontFamily: "'Fira Code', monospace",
+            fontSize: 10,
+            color: '#3b82f6',
+            letterSpacing: 3,
+            textTransform: 'uppercase',
+            marginBottom: 20,
+          }}>
+            Your Privacy Awaits
+          </div>
+
           <h2 style={{
             fontFamily: "'Orbitron', sans-serif",
-            fontSize: 'clamp(24px, 4vw, 36px)',
+            fontSize: 'clamp(28px, 5vw, 44px)',
             fontWeight: 800,
             textAlign: 'center',
-            lineHeight: 1.2,
+            lineHeight: 1.15,
             letterSpacing: 1,
+            marginBottom: 8,
           }}>
-            <span className="gradient-text">Start Earning Privately</span>
+            <span className="gradient-text">Start Earning</span>
+            <br />
+            <span style={{ color: 'rgba(255,255,255,0.9)' }}>Privately</span>
           </h2>
+
           <p style={{
             fontFamily: "'Outfit', sans-serif",
             fontSize: 15,
-            color: 'rgba(255,255,255,0.4)',
+            color: 'rgba(255,255,255,0.35)',
             textAlign: 'center',
-            maxWidth: 400,
-            margin: '16px auto 32px',
-            lineHeight: 1.6,
+            maxWidth: 420,
+            margin: '0 auto 16px',
+            lineHeight: 1.7,
           }}>
-            No seed phrases. No gas fees. Just tell the AI what you want.
+            No seed phrases. No gas fees. No exposed balances.
+            <br />
+            Just tell the AI what you want.
           </p>
-          <button className="btn-primary" onClick={() => navigate('/login')} style={{ padding: '14px 40px', fontSize: 12 }}>
-            Launch App
-            <ArrowRight size={14} />
+
+          {/* Stats row */}
+          <div className="cta-stats">
+            {[
+              { value: '5.2%', label: 'Max APR' },
+              { value: '<2s', label: 'Proof Time' },
+              { value: '$0', label: 'Gas Fees' },
+            ].map((stat, i) => (
+              <div key={i} className="cta-stat">
+                <div className="cta-stat-value">{stat.value}</div>
+                <div className="cta-stat-label">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+
+          <button className="cta-launch-btn" onClick={() => navigate('/login')}>
+            <span className="cta-btn-glow" />
+            <span style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: 10 }}>
+              Launch App
+              <ArrowRight size={16} />
+            </span>
           </button>
+
+          <div style={{
+            fontFamily: "'Fira Code', monospace",
+            fontSize: 9,
+            color: 'rgba(255,255,255,0.15)',
+            letterSpacing: 1.5,
+            marginTop: 20,
+          }}>
+            POWERED BY STARKNET + STARKZAP + NOIR
+          </div>
         </div>
       </section>
 
       {/* ═══════ FOOTER ═══════ */}
-      <footer style={{
-        position: 'relative',
-        zIndex: 10,
-        padding: '24px 32px',
-        borderTop: '1px solid rgba(59,130,246,0.06)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: 12,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <ZapScuraLogo size={20} />
-          <span style={{
-            fontFamily: "'Fira Code', monospace",
-            fontSize: 9,
-            color: 'rgba(255,255,255,0.2)',
-            letterSpacing: 1,
-          }}>
-            ZAPSCURA v0.1 — BUILT WITH STARKZAP SDK ON STARKNET
-          </span>
+      <footer className="home-footer">
+        <div className="home-footer-inner">
+          {/* Top section */}
+          <div className="footer-top">
+            <div className="footer-brand">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                <ZapScuraLogo size={28} />
+                <span style={{
+                  fontFamily: "'Orbitron', sans-serif",
+                  fontSize: 16,
+                  fontWeight: 700,
+                  color: 'rgba(255,255,255,0.9)',
+                  letterSpacing: 1,
+                }}>
+                  ZapScura
+                </span>
+              </div>
+              <p style={{
+                fontFamily: "'Outfit', sans-serif",
+                fontSize: 13,
+                color: 'rgba(255,255,255,0.3)',
+                lineHeight: 1.7,
+                maxWidth: 300,
+              }}>
+                AI-powered privacy-preserving DeFi on Starknet. Stake, earn, and transact with zero-knowledge proofs — no one sees your balances.
+              </p>
+
+              {/* Tech stack badges */}
+              <div style={{ display: 'flex', gap: 6, marginTop: 16, flexWrap: 'wrap' }}>
+                {['Noir', 'Garaga', 'Starkzap', 'Starknet', 'ElGamal', 'STARKs'].map((tech) => (
+                  <span key={tech} style={{
+                    fontFamily: "'Fira Code', monospace",
+                    fontSize: 8,
+                    color: 'rgba(59,130,246,0.6)',
+                    letterSpacing: 1,
+                    padding: '3px 8px',
+                    background: 'rgba(59,130,246,0.04)',
+                    border: '1px solid rgba(59,130,246,0.08)',
+                    borderRadius: 4,
+                  }}>
+                    {tech}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Links columns */}
+            <div className="footer-links-group">
+              <div className="footer-col">
+                <h4 className="footer-col-title">Protocol</h4>
+                <a href="#features" className="footer-link">Features</a>
+                <a href="#how-it-works" className="footer-link">How It Works</a>
+                <a href="#tech" className="footer-link">Technology</a>
+                <a href="#gamification" className="footer-link">Gamification</a>
+              </div>
+              <div className="footer-col">
+                <h4 className="footer-col-title">Ecosystem</h4>
+                <a href="#starkzap" className="footer-link">
+                  Starkzap SDK
+                  <ExternalLink size={8} />
+                </a>
+                <a href="#tech" className="footer-link">
+                  Noir Circuits
+                </a>
+                <a href="#tech" className="footer-link">
+                  Garaga Verifiers
+                </a>
+                <a href="#tech" className="footer-link">
+                  Starknet L2
+                </a>
+              </div>
+              <div className="footer-col">
+                <h4 className="footer-col-title">Resources</h4>
+                <span className="footer-link footer-link-muted">
+                  <FileText size={10} />
+                  Docs (coming soon)
+                </span>
+                <span className="footer-link footer-link-muted">
+                  <Github size={10} />
+                  GitHub (coming soon)
+                </span>
+                <span className="footer-link footer-link-muted">
+                  Whitepaper (coming soon)
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="footer-divider" />
+
+          {/* Bottom section */}
+          <div className="footer-bottom">
+            <div className="footer-bottom-left">
+              <span className="footer-copyright">
+                &copy; 2026 ZapScura. Privacy-first DeFi.
+              </span>
+              <span className="footer-version">v0.1.0-alpha</span>
+            </div>
+            <div className="footer-bottom-right">
+              <span className="footer-tagline">
+                Built with <span style={{ color: '#3b82f6' }}>&#9889;</span> on Starknet
+              </span>
+              <span className="footer-quantum-badge">
+                <Atom size={10} strokeWidth={1.5} color="#00e5ff" />
+                Quantum-Ready Architecture
+              </span>
+            </div>
+          </div>
         </div>
-        <span style={{
-          fontFamily: "'Fira Code', monospace",
-          fontSize: 8,
-          color: 'rgba(255,255,255,0.12)',
-          letterSpacing: 1.5,
-        }}>
-          NOIR + GARAGA + STARKZAP
-        </span>
       </footer>
     </div>
   );
@@ -1131,31 +1570,227 @@ const homeStyles = `
   .home-cta-section {
     position: relative;
     z-index: 10;
-    padding: 80px 24px 100px;
+    padding: 100px 24px 120px;
+    overflow: hidden;
   }
   .home-cta-inner {
-    max-width: 600px;
+    max-width: 640px;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 60px 40px;
-    background: rgba(59,130,246,0.03);
-    border: 1px solid rgba(59,130,246,0.08);
-    border-radius: 20px;
+    padding: 72px 48px 56px;
+    background: linear-gradient(165deg, rgba(59,130,246,0.06) 0%, rgba(139,92,246,0.03) 50%, rgba(4,6,11,0.8) 100%);
+    border: 1px solid rgba(59,130,246,0.12);
+    border-radius: 28px;
     position: relative;
     overflow: hidden;
+    backdrop-filter: blur(20px);
+    box-shadow:
+      0 0 80px rgba(59,130,246,0.06),
+      0 40px 80px rgba(0,0,0,0.4),
+      inset 0 1px 0 rgba(255,255,255,0.04);
   }
   .home-cta-inner::before {
     content: '';
     position: absolute;
-    top: -50%;
+    top: -60%;
     left: 50%;
     transform: translateX(-50%);
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(59,130,246,0.08) 0%, rgba(139,92,246,0.03) 40%, transparent 70%);
+    pointer-events: none;
+    animation: cta-glow-pulse 6s ease-in-out infinite;
+  }
+  .home-cta-inner::after {
+    content: '';
+    position: absolute;
+    bottom: -40%;
+    right: -20%;
     width: 400px;
     height: 400px;
-    background: radial-gradient(circle, rgba(59,130,246,0.06) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(0,229,255,0.04) 0%, transparent 70%);
     pointer-events: none;
+  }
+  @keyframes cta-glow-pulse {
+    0%, 100% { opacity: 0.7; transform: translateX(-50%) scale(1); }
+    50% { opacity: 1; transform: translateX(-50%) scale(1.15); }
+  }
+
+  /* Orbiting rings */
+  .cta-orbit {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid rgba(59,130,246,0.06);
+    pointer-events: none;
+    z-index: 5;
+  }
+  .cta-orbit-1 {
+    width: 700px;
+    height: 700px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    animation: cta-spin 40s linear infinite;
+  }
+  .cta-orbit-2 {
+    width: 500px;
+    height: 500px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-color: rgba(139,92,246,0.05);
+    animation: cta-spin 30s linear infinite reverse;
+  }
+  .cta-orbit-3 {
+    width: 300px;
+    height: 300px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-color: rgba(0,229,255,0.04);
+    animation: cta-spin 20s linear infinite;
+  }
+  @keyframes cta-spin {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+  }
+
+  /* Floating particles */
+  .cta-particles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .cta-particle {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: rgba(59,130,246,0.3);
+    animation: cta-float ease-in-out infinite;
+  }
+  .cta-particle:nth-child(odd) {
+    background: rgba(139,92,246,0.25);
+  }
+  .cta-particle:nth-child(3n) {
+    background: rgba(0,229,255,0.2);
+    width: 2px;
+    height: 2px;
+  }
+  @keyframes cta-float {
+    0%, 100% { opacity: 0; transform: translateY(0) scale(0.5); }
+    20% { opacity: 1; transform: translateY(-8px) scale(1); }
+    80% { opacity: 0.6; transform: translateY(-20px) scale(0.8); }
+  }
+
+  /* Shield icon */
+  .cta-icon-wrap {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+    z-index: 2;
+  }
+  .cta-icon-ring {
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 1px solid rgba(59,130,246,0.15);
+    animation: cta-ring-pulse 3s ease-in-out infinite;
+  }
+  .cta-icon-ring-2 {
+    inset: -12px;
+    border-color: rgba(59,130,246,0.08);
+    animation-delay: 1s;
+    animation-duration: 4s;
+  }
+  @keyframes cta-ring-pulse {
+    0%, 100% { opacity: 0.5; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.08); }
+  }
+
+  /* Stats row */
+  .cta-stats {
+    display: flex;
+    gap: 32px;
+    margin: 24px 0 36px;
+    position: relative;
+    z-index: 2;
+  }
+  .cta-stat {
+    text-align: center;
+    padding: 12px 20px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.04);
+    border-radius: 12px;
+    transition: all 0.3s;
+  }
+  .cta-stat:hover {
+    background: rgba(59,130,246,0.04);
+    border-color: rgba(59,130,246,0.12);
+    transform: translateY(-2px);
+  }
+  .cta-stat-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 18px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: 0.5px;
+  }
+  .cta-stat-label {
+    font-family: 'Fira Code', monospace;
+    font-size: 8px;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  /* Launch button */
+  .cta-launch-btn {
+    position: relative;
+    z-index: 2;
+    padding: 16px 48px;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: #fff;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    border: none;
+    cursor: pointer;
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    transition: all 0.3s;
+    overflow: hidden;
+  }
+  .cta-launch-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 40px rgba(59,130,246,0.4), 0 8px 32px rgba(59,130,246,0.2);
+    filter: brightness(1.1);
+  }
+  .cta-launch-btn:active {
+    transform: translateY(0);
+  }
+  .cta-btn-glow {
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+    animation: cta-btn-shine 3s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes cta-btn-shine {
+    0%, 100% { left: -100%; }
+    50% { left: 150%; }
   }
 
   /* ═══════ TERMINAL ANIMATION ═══════ */
@@ -1387,6 +2022,493 @@ const homeStyles = `
     animation: badgePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
+  /* ═══════ GAMIFICATION ═══════ */
+  .gamification-showcase {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .gamification-showcase {
+      grid-template-columns: 1fr;
+    }
+  }
+  .gamification-levels {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .gamification-level-card {
+    display: grid;
+    grid-template-columns: 48px 1fr 60px;
+    grid-template-rows: auto auto;
+    gap: 2px 12px;
+    align-items: center;
+    padding: 14px 18px;
+    background: rgba(255,255,255,0.015);
+    border: 1px solid rgba(255,255,255,0.04);
+    border-radius: 12px;
+    transition: all 0.3s;
+  }
+  .gamification-level-card:hover {
+    background: rgba(255,255,255,0.03);
+    border-color: var(--level-color, rgba(59,130,246,0.2));
+    transform: translateX(4px);
+  }
+  .level-rank {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    grid-row: 1;
+  }
+  .level-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    grid-row: 1;
+  }
+  .level-xp {
+    font-family: 'Fira Code', monospace;
+    font-size: 9px;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 1px;
+    text-align: right;
+    grid-row: 1;
+  }
+  .level-bar {
+    grid-column: 1 / -1;
+    height: 4px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  .level-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .gamification-features {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .gamification-feature-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 20px;
+    background: rgba(59,130,246,0.02);
+    border: 1px solid rgba(59,130,246,0.06);
+    border-radius: 14px;
+    transition: all 0.3s;
+  }
+  .gamification-feature-card:hover {
+    background: rgba(59,130,246,0.04);
+    border-color: rgba(59,130,246,0.15);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+  }
+  .gamification-feature-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+  .gamification-feature-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.85);
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+  .gamification-feature-desc {
+    font-family: 'Outfit', sans-serif;
+    font-size: 12px;
+    color: rgba(255,255,255,0.35);
+    line-height: 1.6;
+  }
+
+  /* ═══════ QUANTUM SECTION ═══════ */
+  .quantum-section {
+    position: relative;
+    overflow: hidden;
+    background: rgba(0,10,30,0.5);
+  }
+  .quantum-bg-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    animation: quantum-grid-drift 20s linear infinite;
+    pointer-events: none;
+  }
+  @keyframes quantum-grid-drift {
+    0% { transform: translate(0, 0); }
+    100% { transform: translate(60px, 60px); }
+  }
+  .quantum-bg-glow {
+    position: absolute;
+    top: 20%;
+    left: 50%;
+    width: 600px;
+    height: 600px;
+    transform: translateX(-50%);
+    background: radial-gradient(circle, rgba(0,229,255,0.06) 0%, rgba(139,92,246,0.03) 40%, transparent 70%);
+    pointer-events: none;
+    animation: quantum-glow-pulse 6s ease-in-out infinite;
+  }
+  @keyframes quantum-glow-pulse {
+    0%, 100% { opacity: 0.6; transform: translateX(-50%) scale(1); }
+    50% { opacity: 1; transform: translateX(-50%) scale(1.1); }
+  }
+
+  /* Progress bar connector */
+  .quantum-progress-bar {
+    position: relative;
+    max-width: 700px;
+    height: 2px;
+    margin: 0 auto 40px;
+    background: rgba(59,130,246,0.08);
+    border-radius: 2px;
+  }
+  .quantum-progress-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 33%;
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    border-radius: 2px;
+    animation: quantum-fill-pulse 3s ease-in-out infinite;
+  }
+  @keyframes quantum-fill-pulse {
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 1; }
+  }
+  .quantum-progress-dot {
+    position: absolute;
+    top: 50%;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    transform: translateY(-50%);
+    border: 2px solid rgba(59,130,246,0.3);
+    background: #0a1128;
+  }
+  .quantum-progress-dot-1 {
+    left: 16%;
+    background: #3b82f6;
+    border-color: #3b82f6;
+    box-shadow: 0 0 8px rgba(59,130,246,0.4);
+  }
+  .quantum-progress-dot-2 {
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-color: rgba(139,92,246,0.4);
+  }
+  .quantum-progress-dot-3 {
+    right: 16%;
+    border-color: rgba(0,229,255,0.3);
+  }
+
+  /* Quantum icon pulse for active card */
+  .quantum-icon-pulse {
+    position: absolute;
+    inset: -6px;
+    border-radius: 18px;
+    border: 1.5px solid;
+    animation: q-icon-ring 2.5s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes q-icon-ring {
+    0%, 100% { opacity: 0; transform: scale(0.95); }
+    50% { opacity: 1; transform: scale(1.08); }
+  }
+
+  /* Detail tag */
+  .quantum-detail {
+    font-family: 'Fira Code', monospace;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    margin-top: 12px;
+    text-transform: uppercase;
+  }
+
+  /* Note icon */
+  .quantum-note-icon {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,229,255,0.06);
+    border: 1px solid rgba(0,229,255,0.12);
+    border-radius: 10px;
+  }
+
+  /* Gradient shift for title */
+  @keyframes gradient-shift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  .quantum-timeline {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    position: relative;
+    margin-bottom: 40px;
+  }
+  @media (max-width: 768px) {
+    .quantum-timeline {
+      grid-template-columns: 1fr;
+      max-width: 420px;
+      margin: 0 auto 40px;
+    }
+    .quantum-line {
+      display: none !important;
+    }
+  }
+  .quantum-line {
+    position: absolute;
+    top: 80px;
+    left: 10%;
+    right: 10%;
+    height: 1px;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6, #00e5ff);
+    opacity: 0.2;
+    z-index: 0;
+  }
+  .quantum-card {
+    position: relative;
+    z-index: 1;
+    padding: 28px 24px;
+    text-align: center;
+    background: rgba(10,17,40,0.6);
+    border: 1px solid rgba(59,130,246,0.06);
+    border-radius: 16px;
+    transition: all 0.3s;
+    backdrop-filter: blur(8px);
+  }
+  .quantum-card:hover {
+    border-color: rgba(59,130,246,0.15);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+  }
+  .quantum-card-active {
+    border-color: rgba(59,130,246,0.2);
+    box-shadow: 0 0 30px rgba(59,130,246,0.06);
+  }
+  .quantum-phase {
+    font-family: 'Fira Code', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    margin-bottom: 16px;
+  }
+  .quantum-icon {
+    position: relative;
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    margin: 0 auto 16px;
+  }
+  .quantum-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.85);
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+  }
+  .quantum-desc {
+    font-family: 'Outfit', sans-serif;
+    font-size: 12px;
+    color: rgba(255,255,255,0.35);
+    line-height: 1.7;
+  }
+  .quantum-live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 16px;
+    padding: 4px 12px;
+    background: rgba(16,185,129,0.08);
+    border: 1px solid rgba(16,185,129,0.2);
+    border-radius: 100px;
+    font-family: 'Fira Code', monospace;
+    font-size: 8px;
+    font-weight: 600;
+    color: #10b981;
+    letter-spacing: 2px;
+  }
+  .quantum-live-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #10b981;
+    animation: livePulse 2s ease-in-out infinite;
+  }
+  .quantum-note {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 16px 24px;
+    background: rgba(0,229,255,0.02);
+    border: 1px solid rgba(0,229,255,0.08);
+    border-radius: 12px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 12px;
+    color: rgba(255,255,255,0.4);
+    line-height: 1.6;
+  }
+
+  /* ═══════ FOOTER ═══════ */
+  .home-footer {
+    position: relative;
+    z-index: 10;
+    border-top: 1px solid rgba(59,130,246,0.06);
+    background: rgba(4,6,11,0.8);
+    backdrop-filter: blur(12px);
+  }
+  .home-footer-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 60px 32px 32px;
+  }
+  .footer-top {
+    display: grid;
+    grid-template-columns: 1.2fr 2fr;
+    gap: 60px;
+    margin-bottom: 40px;
+  }
+  @media (max-width: 768px) {
+    .footer-top {
+      grid-template-columns: 1fr;
+      gap: 40px;
+    }
+  }
+  .footer-brand {}
+  .footer-links-group {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+  }
+  @media (max-width: 600px) {
+    .footer-links-group {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  .footer-col {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .footer-col-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .footer-link {
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    color: rgba(255,255,255,0.3);
+    text-decoration: none;
+    transition: color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+  .footer-link:hover {
+    color: rgba(255,255,255,0.7);
+  }
+  .footer-link-muted {
+    cursor: default;
+    opacity: 0.5;
+  }
+  .footer-link-muted:hover {
+    color: rgba(255,255,255,0.3);
+  }
+  .footer-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(59,130,246,0.1), rgba(139,92,246,0.08), transparent);
+    margin-bottom: 24px;
+  }
+  .footer-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .footer-bottom-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .footer-copyright {
+    font-family: 'Fira Code', monospace;
+    font-size: 10px;
+    color: rgba(255,255,255,0.2);
+    letter-spacing: 0.5px;
+  }
+  .footer-version {
+    font-family: 'Fira Code', monospace;
+    font-size: 9px;
+    color: rgba(59,130,246,0.4);
+    padding: 2px 8px;
+    background: rgba(59,130,246,0.04);
+    border: 1px solid rgba(59,130,246,0.08);
+    border-radius: 4px;
+    letter-spacing: 1px;
+  }
+  .footer-bottom-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  .footer-tagline {
+    font-family: 'Fira Code', monospace;
+    font-size: 10px;
+    color: rgba(255,255,255,0.2);
+    letter-spacing: 0.5px;
+  }
+  .footer-quantum-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Fira Code', monospace;
+    font-size: 8px;
+    color: rgba(0,229,255,0.5);
+    letter-spacing: 1px;
+    padding: 4px 10px;
+    background: rgba(0,229,255,0.03);
+    border: 1px solid rgba(0,229,255,0.08);
+    border-radius: 100px;
+  }
+
   /* ═══════ RESPONSIVE ═══════ */
   @media (max-width: 600px) {
     .home-hero {
@@ -1401,6 +2523,13 @@ const homeStyles = `
     }
     .home-section {
       padding: 60px 20px;
+    }
+    .home-footer-inner {
+      padding: 40px 20px 24px;
+    }
+    .footer-bottom {
+      flex-direction: column;
+      align-items: flex-start;
     }
   }
 `;

@@ -4,6 +4,16 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    port: 3000,
+    proxy: {
+      '/rpc/cartridge': {
+        target: 'https://api.cartridge.gg',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/rpc\/cartridge/, '/x/starknet/sepolia'),
+      },
+    },
+  },
   define: {
     'process.env': {},
     global: 'globalThis',

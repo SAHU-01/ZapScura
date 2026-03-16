@@ -12,6 +12,7 @@
   "dependencies": {
     "@aztec/bb.js": "3.0.0-nightly.20251104",
     "@noir-lang/noir_js": "1.0.0-beta.16",
+    "@supabase/supabase-js": "^2.99.1",
     "buffer": "^6.0.3",
     "garaga": "^1.0.0",
     "get-starknet-core": "^4.0.0",

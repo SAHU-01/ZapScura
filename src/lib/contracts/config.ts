@@ -26,7 +26,7 @@ export const CONTRACT_ADDRESSES = {
 /** Starknet RPC endpoints by network */
 const RPC_URLS: Record<string, string> = {
   devnet: 'http://localhost:5050',
-  sepolia: 'https://api.cartridge.gg/x/starknet/sepolia',
+  sepolia: import.meta.env.DEV ? '/rpc/cartridge' : 'https://api.cartridge.gg/x/starknet/sepolia',
   mainnet: 'https://starknet-mainnet.public.blastapi.io',
 };
 

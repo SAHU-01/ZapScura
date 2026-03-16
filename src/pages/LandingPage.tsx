@@ -8,13 +8,21 @@
  */
 
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { ShieldCheck, Zap, Bot, Target, Wallet } from 'lucide-react';
 import { useWallet, type AuthMethod } from '../hooks/useWallet';
 import ZapScuraLogo, { logoStyles } from '../components/ZapScuraLogo';
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const { connect, isConnecting, error } = useWallet();
+  const { connect, isConnecting, isRestoring, address, error } = useWallet();
+
+  // If already connected (or session restored), skip login
+  useEffect(() => {
+    if (!isRestoring && address) {
+      navigate('/app', { replace: true });
+    }
+  }, [isRestoring, address, navigate]);
 
   const handleLogin = async (method: AuthMethod) => {
     await connect(method);
@@ -50,15 +58,7 @@ export default function LandingPage() {
       }} />
 
       {/* Header */}
-      <header style={{
-        position: 'relative',
-        zIndex: 10,
-        padding: '20px 32px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        borderBottom: '1px solid rgba(59,130,246,0.06)',
-      }}>
+      <header className="landing-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <ZapScuraLogo size={36} glow animated />
           <span style={{
@@ -71,7 +71,7 @@ export default function LandingPage() {
             ZapScura
           </span>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="landing-header-badges">
           <span className="badge-shield">
             <Zap size={9} strokeWidth={2} />
             Powered by Starkzap
@@ -81,17 +81,8 @@ export default function LandingPage() {
       </header>
 
       {/* Hero */}
-      <main style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        position: 'relative',
-        zIndex: 10,
-        padding: '0 24px 60px',
-      }}>
-        <div style={{ textAlign: 'center', maxWidth: 600, marginBottom: 48 }}>
+      <main className="landing-main">
+        <div className="landing-hero-block">
           <div style={{
             fontFamily: "'Orbitron', sans-serif",
             fontSize: 'clamp(32px, 5vw, 48px)',
@@ -208,12 +199,7 @@ export default function LandingPage() {
         </div>
 
         {/* Feature badges */}
-        <div style={{
-          display: 'flex',
-          gap: 16,
-          flexWrap: 'wrap',
-          justifyContent: 'center',
-        }}>
+        <div className="landing-features">
           {[
             { Icon: ShieldCheck, label: 'ZK Privacy', desc: 'Balances encrypted on-chain', color: '#3b82f6' },
             { Icon: Zap, label: 'Gasless', desc: 'Starkzap Paymaster', color: '#00e5ff' },
@@ -254,29 +240,16 @@ export default function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer style={{
-        position: 'relative',
-        zIndex: 10,
-        padding: '16px 32px',
-        borderTop: '1px solid rgba(59,130,246,0.06)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-      }}>
+      <footer className="landing-footer">
         <span style={{
           fontFamily: "'Fira Code', monospace",
           fontSize: 9,
           color: 'rgba(255,255,255,0.2)',
           letterSpacing: 1,
         }}>
-          ZAPSCURA v0.1 — BUILT WITH STARKZAP SDK ON STARKNET
+          ZAPSCURA v0.1 — STARKZAP SDK
         </span>
-        <span style={{
-          fontFamily: "'Fira Code', monospace",
-          fontSize: 8,
-          color: 'rgba(255,255,255,0.12)',
-          letterSpacing: 1.5,
-        }}>
+        <span className="landing-footer-tech">
           NOIR + GARAGA + STARKZAP
         </span>
       </footer>
@@ -285,6 +258,44 @@ export default function LandingPage() {
 }
 
 const landingStyles = `
+  .landing-header {
+    position: relative;
+    z-index: 10;
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(59,130,246,0.06);
+  }
+  .landing-header-badges {
+    display: flex;
+    gap: 8px;
+  }
+  .landing-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 10;
+    padding: 0 24px 60px;
+  }
+  .landing-footer {
+    position: relative;
+    z-index: 10;
+    padding: 16px 32px;
+    border-top: 1px solid rgba(59,130,246,0.06);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .landing-footer-tech {
+    font-family: 'Fira Code', monospace;
+    font-size: 8px;
+    color: rgba(255,255,255,0.12);
+    letter-spacing: 1.5px;
+  }
   .landing-glow-1 {
     position: fixed;
     width: 800px;
@@ -306,6 +317,17 @@ const landingStyles = `
     pointer-events: none;
     z-index: 0;
   }
+  .landing-hero-block {
+    text-align: center;
+    max-width: 600px;
+    margin-bottom: 48px;
+  }
+  .landing-features {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
   .landing-feature-card {
     display: flex;
     align-items: center;
@@ -320,5 +342,51 @@ const landingStyles = `
     background: rgba(59,130,246,0.05);
     border-color: rgba(59,130,246,0.15);
     transform: translateY(-1px);
+  }
+
+  /* ═══════ MOBILE ═══════ */
+  @media (max-width: 600px) {
+    .landing-header {
+      padding: 16px 24px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .landing-header-badges {
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .landing-header-badges .badge-shield,
+    .landing-header-badges .badge-purple {
+      font-size: 6px !important;
+      padding: 3px 5px !important;
+      letter-spacing: 0.5px !important;
+    }
+    .landing-main {
+      padding: 0 24px 40px;
+      justify-content: center;
+    }
+    .landing-hero-block {
+      margin-bottom: 28px;
+    }
+    .landing-footer {
+      padding: 14px 24px;
+      flex-direction: column;
+      gap: 6px;
+      align-items: center;
+      text-align: center;
+    }
+    .landing-footer-tech {
+      font-size: 7px;
+    }
+    .landing-features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      width: 100%;
+    }
+    .landing-feature-card {
+      padding: 8px 10px;
+      gap: 8px;
+    }
   }
 `;

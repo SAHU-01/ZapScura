@@ -25,6 +25,7 @@ import { Account, RpcProvider, constants, type AccountInterface } from 'starknet
 import { StarkZap } from 'starkzap';
 import type { WalletInterface } from 'starkzap';
 import { getRpcUrl, IS_DEVNET, DEVNET_ACCOUNT, DEVNET_RESOURCE_BOUNDS, CONTRACT_ADDRESSES } from '../lib/contracts/config';
+import { restoreStatsFromCloud } from '../lib/gamification';
 
 export type AuthMethod = 'google' | 'apple' | 'email' | 'wallet' | 'devnet';
 
@@ -32,6 +33,7 @@ interface WalletState {
   account: AccountInterface | null;
   address: string | null;
   isConnecting: boolean;
+  isRestoring: boolean;
   error: string | null;
   isDevnet: boolean;
   authMethod: AuthMethod | null;
@@ -46,6 +48,7 @@ const WalletContext = createContext<WalletState>({
   account: null,
   address: null,
   isConnecting: false,
+  isRestoring: true,
   error: null,
   isDevnet: false,
   authMethod: null,
@@ -80,14 +83,74 @@ function buildSessionPolicies() {
   return policies;
 }
 
+const SESSION_KEY = 'zapscura_wallet_session';
+
+interface WalletSession {
+  authMethod: AuthMethod;
+  address: string;
+  connectedAt: number;
+}
+
+function saveSession(authMethod: AuthMethod, address: string) {
+  try {
+    const session: WalletSession = { authMethod, address, connectedAt: Date.now() };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  } catch { /* ignore storage errors */ }
+}
+
+function loadSession(): WalletSession | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const session: WalletSession = JSON.parse(raw);
+    // Expire sessions after 24 hours
+    if (Date.now() - session.connectedAt > 24 * 60 * 60 * 1000) {
+      localStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+function clearSession() {
+  try { localStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
+}
+
+/**
+ * Synchronously read the saved session so we can hydrate address on first render.
+ * This prevents the route guard from redirecting to /login before the async
+ * Cartridge Controller restore completes.
+ */
+function getInitialSession(): WalletSession | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const session: WalletSession = JSON.parse(raw);
+    if (Date.now() - session.connectedAt > 24 * 60 * 60 * 1000) {
+      localStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+const initialSession = IS_DEVNET ? null : getInitialSession();
+
 export function WalletProvider({ children }: { children: ReactNode }) {
+  // Hydrate address from localStorage immediately so route guard doesn't redirect
   const [account, setAccount] = useState<AccountInterface | null>(null);
-  const [address, setAddress] = useState<string | null>(null);
+  const [address, setAddress] = useState<string | null>(initialSession?.address ?? null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [authMethod, setAuthMethod] = useState<AuthMethod | null>(null);
+  const [authMethod, setAuthMethod] = useState<AuthMethod | null>(initialSession?.authMethod ?? null);
   const [privacyKey, setPrivacyKey] = useState<bigint | null>(null);
+  const [isRestoring, setIsRestoring] = useState(!!initialSession || IS_DEVNET);
   const starkzapWalletRef = useRef<WalletInterface | null>(null);
+  const restoringRef = useRef(false);
 
   const connectDevnet = useCallback(async () => {
     setIsConnecting(true);
@@ -132,6 +195,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setAccount(baseAccount);
       setAddress(DEVNET_ACCOUNT.address);
       setAuthMethod('devnet');
+      saveSession('devnet', DEVNET_ACCOUNT.address);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to connect to devnet');
     } finally {
@@ -176,9 +240,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
       setAccount(starknetAccount);
       setAddress(wallet.address);
+      saveSession(method, wallet.address);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Starkzap connection failed');
       setAuthMethod(null);
+      clearSession();
     } finally {
       setIsConnecting(false);
     }
@@ -207,13 +273,75 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setError(null);
     setAuthMethod(null);
     setPrivacyKey(null);
+    clearSession();
   }, []);
 
+  // Auto-restore session on mount.
+  // Address is already hydrated from localStorage (synchronous), so the route guard
+  // won't redirect. Here we restore the actual Starkzap account object in the background.
   useEffect(() => {
-    if (IS_DEVNET && !account) {
-      connectDevnet();
+    if (restoringRef.current || account) {
+      setIsRestoring(false);
+      return;
+    }
+
+    if (IS_DEVNET) {
+      connectDevnet().finally(() => setIsRestoring(false));
+      return;
+    }
+
+    // Check the session saved in localStorage
+    const session = loadSession();
+    if (session && session.authMethod !== 'devnet') {
+      restoringRef.current = true;
+
+      // Restore the full Starkzap wallet session (Cartridge Controller iframe).
+      // The address is already set from getInitialSession() so the user sees the
+      // dashboard immediately while this runs in the background.
+      const attemptRestore = async (retriesLeft: number): Promise<void> => {
+        try {
+          const sdk = new StarkZap({ network: 'sepolia' });
+          const wallet = await sdk.connectCartridge({
+            policies: buildSessionPolicies(),
+            feeMode: 'sponsored',
+          });
+          await wallet.ensureReady({ deploy: 'if_needed', feeMode: 'sponsored' });
+          starkzapWalletRef.current = wallet;
+          const starknetAccount = wallet.getAccount() as unknown as AccountInterface;
+          setAccount(starknetAccount);
+          setAddress(wallet.address);
+          setAuthMethod(session.authMethod);
+          saveSession(session.authMethod, wallet.address);
+        } catch (err) {
+          if (retriesLeft > 0) {
+            // Exponential backoff: 2s, 4s, 8s
+            const delay = 2000 * Math.pow(2, 3 - retriesLeft);
+            await new Promise((r) => setTimeout(r, delay));
+            return attemptRestore(retriesLeft - 1);
+          }
+          // All retries exhausted — keep the hydrated address so the user
+          // stays on the dashboard. They just can't send transactions until
+          // they manually reconnect. Don't clear the session.
+          console.warn('[ZapScura] Session restore failed, keeping hydrated session:', err);
+        } finally {
+          restoringRef.current = false;
+          setIsRestoring(false);
+        }
+      };
+
+      attemptRestore(3);
+    } else {
+      // No session to restore
+      setIsRestoring(false);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Restore gamification stats from cloud when wallet connects
+  useEffect(() => {
+    if (address) {
+      restoreStatsFromCloud(address).catch(() => {});
+    }
+  }, [address]);
 
   return (
     <WalletContext.Provider
@@ -221,6 +349,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         account,
         address,
         isConnecting,
+        isRestoring,
         error,
         isDevnet: IS_DEVNET,
         authMethod,

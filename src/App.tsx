@@ -20,15 +20,19 @@ import DashboardPage from './pages/DashboardPage';
 import SettingsPage from './pages/SettingsPage';
 
 function RedirectIfNotConnected({ children }: { children: React.ReactNode }) {
-  const { address } = useWallet();
+  const { address, isRestoring } = useWallet();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!address) {
+    // Only redirect if restore is done AND there's no address.
+    // Address is hydrated from localStorage synchronously, so if user had a
+    // session it will be non-null on first render — no redirect, no flash.
+    if (!isRestoring && !address) {
       navigate('/login');
     }
-  }, [address, navigate]);
+  }, [address, isRestoring, navigate]);
 
+  // Show dashboard as long as we have an address (even while account is restoring)
   if (!address) return null;
   return <>{children}</>;
 }
@@ -64,19 +68,17 @@ function AppLayout() {
         background: 'rgba(4,6,11,0.92)',
         borderBottom: '1px solid rgba(59,130,246,0.08)',
       }}>
-        <div style={{
-          maxWidth: 1400,
-          margin: '0 auto',
-          padding: '0 24px',
+        <div className="app-header-inner" style={{
+          padding: '0 16px',
           height: 64,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-            <NavLink to="/app" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
+            <NavLink to="/app" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', flexShrink: 0 }}>
               <ZapScuraLogo size={28} glow />
-              <span style={{
+              <span className="app-brand-text" style={{
                 fontFamily: "'Orbitron', sans-serif",
                 fontWeight: 700,
                 fontSize: 14,
@@ -85,7 +87,7 @@ function AppLayout() {
               }}>
                 ZapScura
               </span>
-              <span style={{
+              <span className="app-version-text" style={{
                 fontSize: 8,
                 color: 'rgba(59,130,246,0.4)',
                 fontFamily: "'Fira Code', monospace",
@@ -104,7 +106,7 @@ function AppLayout() {
                 }
               >
                 <LayoutDashboard size={13} strokeWidth={1.5} />
-                Dashboard
+                <span className="nav-item-label">Dashboard</span>
               </NavLink>
               <NavLink
                 to="/app/settings"
@@ -113,11 +115,13 @@ function AppLayout() {
                 }
               >
                 <Settings size={13} strokeWidth={1.5} />
-                Settings
+                <span className="nav-item-label">Settings</span>
               </NavLink>
             </nav>
           </div>
-          <WalletConnect />
+          <div className="app-wallet-connect" style={{ flexShrink: 0 }}>
+            <WalletConnect />
+          </div>
         </div>
       </header>
 
@@ -130,13 +134,13 @@ function AppLayout() {
       </main>
 
       {/* Footer */}
-      <footer style={{
+      <footer className="app-footer" style={{
         position: 'relative',
         zIndex: 10,
         padding: '12px 24px',
         borderTop: '1px solid rgba(59,130,246,0.06)',
       }}>
-        <div style={{
+        <div className="app-footer-inner" style={{
           maxWidth: 1400,
           margin: '0 auto',
           display: 'flex',
@@ -213,5 +217,50 @@ const appStyles = `
   .nav-item-inactive:hover {
     background: rgba(59,130,246,0.04);
     color: rgba(255,255,255,0.7);
+  }
+  @media (max-width: 768px) {
+    .app-header-inner {
+      padding: 0 12px !important;
+      height: 52px !important;
+      overflow: hidden !important;
+    }
+    .app-brand-text {
+      display: none !important;
+    }
+    .app-version-text {
+      display: none !important;
+    }
+    .nav-item {
+      padding: 6px 8px;
+      font-size: 9px;
+      gap: 4px;
+    }
+    .nav-item-label {
+      display: none;
+    }
+    .wallet-method-badge {
+      display: none !important;
+    }
+    .wallet-addr-text {
+      font-size: 9px !important;
+    }
+    .wallet-addr-pill {
+      padding: 5px 8px !important;
+    }
+    .disconnect-text {
+      display: none;
+    }
+    .btn-danger {
+      padding: 5px 8px !important;
+    }
+    .app-footer {
+      padding: 10px 16px !important;
+    }
+    .app-footer-inner {
+      flex-direction: column !important;
+      gap: 4px !important;
+      align-items: center !important;
+      text-align: center;
+    }
   }
 `;

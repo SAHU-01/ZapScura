@@ -32,7 +32,7 @@ export default function BalanceDisplay() {
   const scoreColor = privacyScore >= 80 ? '#10b981' : privacyScore >= 50 ? '#f59e0b' : '#ef4444';
 
   return (
-    <div className="card" style={{ position: 'relative', overflow: 'hidden' }}>
+    <div className="card" style={{ position: 'relative', flexShrink: 0 }}>
       {/* Privacy gradient overlay */}
       <div style={{
         position: 'absolute',
@@ -42,6 +42,7 @@ export default function BalanceDisplay() {
         height: 2,
         background: '#3b82f6',
         opacity: privacyScore > 50 ? 1 : 0.3,
+        borderRadius: '14px 14px 0 0',
       }} />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
@@ -83,12 +84,15 @@ export default function BalanceDisplay() {
           border: `1px solid ${scoreColor}25`,
           clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)',
           textAlign: 'center' as const,
+          position: 'relative',
+          overflow: 'hidden',
         }}>
           <div style={{
             fontFamily: "'Orbitron', sans-serif",
             fontSize: 18,
             fontWeight: 800,
             color: scoreColor,
+            textShadow: `0 0 12px ${scoreColor}40`,
           }}>
             {privacyScore}%
           </div>
@@ -99,7 +103,23 @@ export default function BalanceDisplay() {
             letterSpacing: 1.5,
             textTransform: 'uppercase',
           }}>
-            Privacy
+            Shield Power
+          </div>
+          {/* Mini shield power bar */}
+          <div style={{
+            marginTop: 4,
+            height: 3,
+            background: 'rgba(255,255,255,0.05)',
+            overflow: 'hidden',
+            clipPath: 'polygon(1px 0, 100% 0, 100% calc(100% - 1px), calc(100% - 1px) 100%, 0 100%, 0 1px)',
+          }}>
+            <div style={{
+              height: '100%',
+              width: `${privacyScore}%`,
+              background: scoreColor,
+              boxShadow: `0 0 6px ${scoreColor}60`,
+              transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
+            }} />
           </div>
         </div>
       </div>

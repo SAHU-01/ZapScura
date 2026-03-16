@@ -257,6 +257,36 @@
     50% { background-position: 100% 50%; }
   }
 
+  /* ═══════ GAMIFICATION ═══════ */
+  @keyframes xp-bar-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  .xp-bar-fill {
+    position: relative;
+  }
+  .xp-bar-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 20px;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3));
+    animation: xp-bar-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes level-up-glow {
+    0% { box-shadow: 0 0 0 0 rgba(59,130,246,0.4); }
+    50% { box-shadow: 0 0 30px 8px rgba(59,130,246,0.2); }
+    100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); }
+  }
+
+  .level-up-card {
+    animation: level-up-glow 1.5s ease-out;
+  }
+
   /* ═══════ TX RESULTS ═══════ */
   .tx-success {
     @apply mt-4 p-4 border;
