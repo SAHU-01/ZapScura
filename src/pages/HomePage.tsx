@@ -457,6 +457,7 @@ export default function HomePage() {
             <a href="#tech" className="home-nav-link">Technology</a>
             <a href="#gamification" className="home-nav-link">Gamification</a>
             <a href="#starkzap" className="home-nav-link">Starkzap</a>
+            <span className="home-nav-link" style={{ cursor: 'pointer' }} onClick={() => navigate('/docs')}>Docs</span>
           </nav>
 
           <button className="btn-primary" onClick={() => navigate('/login')} style={{ padding: '8px 20px', fontSize: 10 }}>
@@ -1144,9 +1145,9 @@ export default function HomePage() {
               </div>
               <div className="footer-col">
                 <h4 className="footer-col-title">Resources</h4>
-                <span className="footer-link footer-link-muted">
+                <span className="footer-link" style={{ cursor: 'pointer' }} onClick={() => navigate('/docs')}>
                   <FileText size={10} />
-                  Docs (coming soon)
+                  Documentation
                 </span>
                 <span className="footer-link footer-link-muted">
                   <Github size={10} />

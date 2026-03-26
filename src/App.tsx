@@ -18,6 +18,7 @@ import HomePage from './pages/HomePage';
 import LandingPage from './pages/LandingPage';
 import DashboardPage from './pages/DashboardPage';
 import SettingsPage from './pages/SettingsPage';
+import DocsPage from './pages/DocsPage';
 
 function RedirectIfNotConnected({ children }: { children: React.ReactNode }) {
   const { address, isRestoring } = useWallet();
@@ -180,6 +181,7 @@ export default function App() {
     <WalletProvider>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/docs" element={<DocsPage />} />
         <Route path="/login" element={<LandingPage />} />
         <Route path="/app/*" element={
           <ToastProvider>

@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react';
-import { Key, Lock, Unlock, ShieldCheck, Wifi, WifiOff } from 'lucide-react';
+import { Key, Lock, Unlock, ShieldCheck, Wifi, WifiOff, Info } from 'lucide-react';
 import { useWallet } from '../hooks/useWallet';
 import { generateKeyPair, serializeKeyPair, deserializeKeyPair } from '../lib/privacy/keygen';
 import { encryptAndStore, decryptFromStorage, hasStoredKey } from '../lib/privacy/storage';
@@ -113,6 +113,96 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+
+      {/* Setup guide — shown when key is not unlocked */}
+      {!isKeyUnlocked && (
+        <div className="card" style={{ marginBottom: 16, padding: 16, border: '1px solid rgba(245,158,11,0.15)', background: 'rgba(245,158,11,0.03)' }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            marginBottom: 10,
+          }}>
+            <Info size={12} strokeWidth={1.5} color="#f59e0b" />
+            <span style={{
+              fontFamily: "'Orbitron', sans-serif",
+              fontSize: 10,
+              fontWeight: 600,
+              color: '#f59e0b',
+              letterSpacing: 1,
+              textTransform: 'uppercase',
+            }}>
+              {!hasKey ? 'Setup Required' : 'Unlock Required'}
+            </span>
+          </div>
+
+          <p style={{
+            fontSize: 12,
+            fontFamily: "'Outfit', sans-serif",
+            color: 'rgba(255,255,255,0.5)',
+            marginBottom: 12,
+            lineHeight: 1.7,
+          }}>
+            {!hasKey
+              ? 'Before you can shield balances, generate ZK proofs, or use private DeFi features, you need to create your privacy key.'
+              : 'Your privacy key is encrypted locally. Enter your password to unlock it and access shielded features.'
+            }
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {(!hasKey ? [
+              { step: '1', text: 'Connect your wallet above (Google, Apple, or email via Starkzap)' },
+              { step: '2', text: 'Choose a strong password below — this encrypts your privacy key locally' },
+              { step: '3', text: 'Click "Generate Privacy Key" — your ElGamal keypair will be created' },
+              { step: '4', text: 'Done! You can now shield balances, open CDPs, and generate ZK proofs' },
+            ] : [
+              { step: '1', text: 'Enter the same password you used when generating your key' },
+              { step: '2', text: 'Click "Unlock Key" to decrypt and activate your privacy key' },
+            ]).map(({ step, text }) => (
+              <div key={step} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <span style={{
+                  fontFamily: "'Orbitron', sans-serif",
+                  fontSize: 9,
+                  fontWeight: 700,
+                  color: '#f59e0b',
+                  background: 'rgba(245,158,11,0.1)',
+                  border: '1px solid rgba(245,158,11,0.2)',
+                  borderRadius: 4,
+                  padding: '2px 6px',
+                  flexShrink: 0,
+                  marginTop: 1,
+                }}>
+                  {step}
+                </span>
+                <span style={{
+                  fontSize: 11,
+                  fontFamily: "'Outfit', sans-serif",
+                  color: 'rgba(255,255,255,0.45)',
+                  lineHeight: 1.5,
+                }}>
+                  {text}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {!hasKey && (
+            <div style={{
+              marginTop: 12,
+              padding: '8px 12px',
+              background: 'rgba(239,68,68,0.05)',
+              border: '1px solid rgba(239,68,68,0.1)',
+              borderRadius: 4,
+              fontSize: 10,
+              fontFamily: "'Fira Code', monospace",
+              color: 'rgba(239,68,68,0.7)',
+              lineHeight: 1.6,
+            }}>
+              Remember your password! If you lose it, you lose access to your shielded balances forever. There is no recovery mechanism.
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Privacy key */}
       <div className="card" style={{ padding: 16 }}>
